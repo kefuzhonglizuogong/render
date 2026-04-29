@@ -1,14 +1,22 @@
-cmake_minimum_required(VERSION 3.20)
-project(mini_renderer LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+
+project(mini_path_tracer)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(mini_renderer
-    src/main.cpp
-)
+include_directories(include)
 
-target_include_directories(mini_renderer PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-)
+add_executable(mini_path_tracer
+    src/main.cpp
+    src/sphere.cpp
+    src/plane.cpp
+    src/scene.cpp
+    src/material.cpp
+    src/camera.cpp
+    src/film.cpp
+    src/renderer.cpp
+    src/light.cpp
+ "include/frame.h" "include/light.h" "src/light.cpp")
+
+target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

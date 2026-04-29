@@ -1,9 +1,40 @@
-.vs/
-*.user
-*.suo
-*.vcxproj.user
-x64/
-Debug/
-Release/
-out/
+# build directories
 build/
+build_codegen/
+out/
+cmake-build-*/
+build_codex/
+
+# generated images / render outputs
+output/
+output.png
+output.ppm
+*.ppm
+*.png
+*.exr
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Visual Studio / VSCode
+.vs/
+.vscode/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# binaries
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.dll
+*.lib
+*.exp
+
+# logs
+*.log
