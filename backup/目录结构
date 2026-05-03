@@ -1,0 +1,58 @@
+mini_renderer/
+©À©¤©¤ CMakeLists.txt
+©À©¤©¤ include/
+©¦   ©À©¤©¤ core/
+©¦   ©¦   ©À©¤©¤ vec3.h
+©¦   ©¦   ©À©¤©¤ ray.h
+©¦   ©¦   ©À©¤©¤ random.h
+©¦   ©¦   ©À©¤©¤ aabb.h
+©¦   ©¦   ©¸©¤©¤ frame.h
+©¦   ©¦
+©¦   ©À©¤©¤ geometry/
+©¦   ©¦   ©À©¤©¤ hittable.h
+©¦   ©¦   ©À©¤©¤ sphere.h
+©¦   ©¦   ©À©¤©¤ plane.h
+©¦   ©¦   ©À©¤©¤ quad.h
+©¦   ©¦   ©¸©¤©¤ triangle.h
+©¦   ©¦
+©¦   ©À©¤©¤ material/
+©¦   ©¦   ©¸©¤©¤ material.h
+©¦   ©¦
+©¦   ©À©¤©¤ light/
+©¦   ©¦   ©¸©¤©¤ light.h
+©¦   ©¦
+©¦   ©À©¤©¤ render/
+©¦   ©¦   ©À©¤©¤ camera.h
+©¦   ©¦   ©À©¤©¤ film.h
+©¦   ©¦   ©À©¤©¤ renderer.h
+©¦   ©¦   ©¸©¤©¤ scene.h
+©¦   ©¦
+©¦   ©¸©¤©¤ image/
+©¦       ©¸©¤©¤ image.h
+©¦
+©À©¤©¤ src/
+©¦   ©À©¤©¤ geometry/
+©¦   ©¦   ©À©¤©¤ sphere.cpp
+©¦   ©¦   ©À©¤©¤ plane.cpp
+©¦   ©¦   ©À©¤©¤ quad.cpp
+©¦   ©¦   ©¸©¤©¤ triangle.cpp
+©¦   ©¦
+©¦   ©À©¤©¤ material/
+©¦   ©¦   ©¸©¤©¤ material.cpp
+©¦   ©¦
+©¦   ©À©¤©¤ light/
+©¦   ©¦   ©¸©¤©¤ light.cpp
+©¦   ©¦
+©¦   ©À©¤©¤ render/
+©¦   ©¦   ©À©¤©¤ camera.cpp
+©¦   ©¦   ©À©¤©¤ film.cpp
+©¦   ©¦   ©À©¤©¤ renderer.cpp
+©¦   ©¦   ©¸©¤©¤ scene.cpp
+©¦   ©¦
+©¦   ©¸©¤©¤ main.cpp
+©¦
+©À©¤©¤ backup/
+©¦   ©¸©¤©¤ main_quadlight_scene.cpp
+©¦
+©¸©¤©¤ output/
+    ©¸©¤©¤ output.ppm

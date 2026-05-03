@@ -9,14 +9,25 @@ include_directories(include)
 
 add_executable(mini_path_tracer
     src/main.cpp
-    src/sphere.cpp
-    src/plane.cpp
-    src/scene.cpp
-    src/material.cpp
     src/camera.cpp
     src/film.cpp
+    src/material.cpp
+    src/plane.cpp
+    src/quad.cpp
+    src/triangle.cpp
     src/renderer.cpp
+    src/scene.cpp
+    src/sphere.cpp
     src/light.cpp
- "include/frame.h" "include/light.h" "src/light.cpp")
+    src/geometry/bvh.cpp
+    "include/frame.h"
+    "include/light.h"
+    "include/quad.h"
+    "include/triangle.h"
+    "include/core/aabb.h"
+    "include/geometry/bvh.h"
+    "include/core/stats.h"
+    src/core/stats.cpp
+)
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

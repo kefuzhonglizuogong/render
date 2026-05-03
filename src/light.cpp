@@ -101,3 +101,122 @@ double SphereLight::pdf(const Point3& refPoint,const Vec3& wi) const {
 
     return pdfArea * distanceSquared / cosLight;
 }
+
+QuadLight::QuadLight(
+    const Point3& c,
+    const Vec3& u,
+    const Vec3& v,
+    const Color& e
+)
+    : corner(c), edgeU(u), edgeV(v), emit(e) {
+    Vec3 n = cross(edgeU, edgeV);
+    area = n.length();
+    normal = n.normalized();
+}
+
+bool QuadLight::isInside(double a, double b) const {
+    return a >= 0.0 && a <= 1.0 && b >= 0.0 && b <= 1.0;
+}
+
+bool QuadLight::sample(const Point3& refPoint,LightSample& sample) const {
+    if (area <= 1e-12) {
+        return false;
+    }
+
+    double a = randomDouble();
+    double b = randomDouble();
+
+    Point3 lightPoint = corner + a * edgeU + b * edgeV;
+
+    Vec3 toLight = lightPoint - refPoint;
+    double distanceSquared = toLight.lengthSquared();
+    double distance = std::sqrt(distanceSquared);
+
+    if (distance <= 1e-8) {
+        return false;
+    }
+
+    Vec3 wi = toLight / distance;
+
+    double cosLight = std::max(
+        0.0,
+        dot(normal, -wi)
+    );
+
+    if (cosLight <= 1e-8) {
+        return false;
+    }
+
+    double pdfArea = 1.0 / area;
+    double pdfSolidAngle = pdfArea * distanceSquared / cosLight;
+
+    if (pdfSolidAngle <= 1e-12) {
+        return false;
+    }
+
+    sample.position = lightPoint;
+    sample.normal = normal;
+    sample.wi = wi;
+    sample.distance = distance;
+    sample.pdf = pdfSolidAngle;
+    sample.emission = emit;
+
+    return true;
+}
+
+double QuadLight::pdf(const Point3& refPoint,const Vec3& wi) const {
+    if (area <= 1e-12) {
+        return 0.0;
+    }
+
+    Ray ray(refPoint, wi.normalized());
+
+    double denom = dot(normal, ray.direction);
+
+    if (std::fabs(denom) < 1e-8) {
+        return 0.0;
+    }
+
+    double t = dot(corner - ray.origin, normal) / denom;
+
+    if (t <= 1e-4) {
+        return 0.0;
+    }
+
+    Point3 p = ray.at(t);
+    Vec3 planarHit = p - corner;
+
+    double uu = dot(edgeU, edgeU);
+    double uv = dot(edgeU, edgeV);
+    double vv = dot(edgeV, edgeV);
+
+    double wu = dot(planarHit, edgeU);
+    double wv = dot(planarHit, edgeV);
+
+    double determinant = uv * uv - uu * vv;
+
+    if (std::fabs(determinant) < 1e-12) {
+        return 0.0;
+    }
+
+    double a = (uv * wv - vv * wu) / determinant;
+    double b = (uv * wu - uu * wv) / determinant;
+
+    if (!isInside(a, b)) {
+        return 0.0;
+    }
+
+    double distanceSquared = (p - refPoint).lengthSquared();
+
+    double cosLight = std::max(
+        0.0,
+        dot(normal, -ray.direction.normalized())
+    );
+
+    if (cosLight <= 1e-8) {
+        return 0.0;
+    }
+
+    double pdfArea = 1.0 / area;
+    return pdfArea * distanceSquared / cosLight;
+}

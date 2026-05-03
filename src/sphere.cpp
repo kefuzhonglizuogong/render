@@ -1,7 +1,11 @@
 #include "sphere.h"
 #include <cmath>
+#include "core/stats.h"
 
 bool Sphere::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) const {
+
+    ++gStats.sphereIntersectCalls;
+
     Vec3 oc = ray.origin - center;
 
     double a = ray.direction.lengthSquared();
@@ -30,5 +34,16 @@ bool Sphere::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec)
     rec.setFaceNormal(ray, outwardNormal);
 
     rec.material = material;
+    return true;
+}
+
+bool Sphere::boundingBox(AABB& outputBox) const {
+    Vec3 r(radius, radius, radius);
+
+    outputBox = AABB(
+        center - r,
+        center + r
+    );
+
     return true;
 }
