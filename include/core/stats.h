@@ -11,6 +11,7 @@ struct RenderStats {
     std::uint64_t sphereIntersectCalls = 0;
     std::uint64_t quadIntersectCalls = 0;
     std::uint64_t triangleIntersectCalls = 0;
+    std::uint64_t meshIntersectCalls = 0;
 
     void reset() {
         sceneIntersectCalls = 0;

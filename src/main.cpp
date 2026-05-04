@@ -6,18 +6,19 @@
 #include <iomanip>
 #include <sstream>
 
-#include "scene.h"
-#include "sphere.h"
-#include "plane.h"
-#include "quad.h"
-#include "triangle.h"
-#include "material.h"
-#include "camera.h"
-#include "film.h"
-#include "renderer.h"
-#include "light.h"
+#include "render/scene.h"
+#include "geometry/sphere.h"
+#include "geometry/plane.h"
+#include "geometry/quad.h"
+#include "geometry/triangle.h"
+#include "material/material.h"
+#include "render/camera.h"
+#include "render/film.h"
+#include "render/renderer.h"
+#include "light/light.h"
 #include "core/stats.h"
-#include "random.h"
+#include "core/random.h"
+#include "geometry/mesh.h"
 
 
 namespace {
@@ -44,11 +45,11 @@ namespace {
 
 int main() {
     const double aspectRatio = 16.0 / 9.0;
-    const int imageWidth = 300;//400
+    const int imageWidth = 400;//300
     const int imageHeight = static_cast<int>(imageWidth / aspectRatio);
 
-    const int samplesPerPixel = 20;//200
-    const int maxDepth = 8;//12
+    const int samplesPerPixel = 200;//20
+    const int maxDepth = 12;//8
 
     Scene scene;
 
@@ -57,6 +58,8 @@ int main() {
     Lambertian greenMat(Color(0.15, 0.75, 0.15));
     Lambertian blueMat(Color(0.20, 0.30, 0.80));
     Lambertian triangleMat(Color(0.1, 0.3, 0.9));
+    
+    Lambertian meshMat(Color(0.85, 0.65, 0.25));
 
     //批量测试
     Lambertian smallRedMat(Color(0.8, 0.2, 0.2));
@@ -220,8 +223,34 @@ int main() {
             ));
         }
     }
+
+    auto pyramid = std::make_shared<Mesh>();
+
+    Point3 p0(-0.35, -0.50, -2.15);
+    Point3 p1(0.35, -0.50, -2.15);
+    Point3 p2(0.35, -0.50, -2.85);
+    Point3 p3(-0.35, -0.50, -2.85);
+    Point3 top(0.0, 0.25, -2.50);
+
+    // 底面，两个三角形
+    pyramid->addTriangle(p0, p1, p2, &meshMat);
+    pyramid->addTriangle(p0, p2, p3, &meshMat);
+
+    // 四个侧面
+    pyramid->addTriangle(p0, p1, top, &meshMat);
+    pyramid->addTriangle(p1, p2, top, &meshMat);
+    pyramid->addTriangle(p2, p3, top, &meshMat);
+    pyramid->addTriangle(p3, p0, top, &meshMat);
+
+    pyramid->buildBVH();
+
+    scene.add(pyramid);
+
+
+
     // 所有物体添加完成后构建 BVH
     scene.buildBVH();
+
 
     Camera camera(aspectRatio);
     Film film(imageWidth, imageHeight);
@@ -255,6 +284,7 @@ int main() {
         gStats.quadIntersectCalls +
         gStats.triangleIntersectCalls;
 
+    std::cout << "Mesh intersect calls:      " << gStats.meshIntersectCalls << "\n";
     std::cout << "Primitive intersect calls: " << primitiveCalls << "\n";
     std::cout << "====================\n";
 
@@ -353,5 +383,22 @@ Sphere intersect calls:    727349
 Quad intersect calls:      7254279
 Triangle intersect calls:  2319748
 Primitive intersect calls: 10301376
+====================
+*/
+
+/*
+Rendering line 225 / 225
+Render finished: D:/Program/Project/mini_renderer\output\render_20260504_105127.ppm
+
+=== Render Stats ===
+Render time seconds:       181.47
+Scene intersect calls:     52148637
+BVH node intersect calls:  1564153995
+AABB hit calls:            1564153995
+Sphere intersect calls:    6695911
+Quad intersect calls:      154048148
+Triangle intersect calls:  106157659
+Mesh intersect calls:      7306038
+Primitive intersect calls: 266901718
 ====================
 */

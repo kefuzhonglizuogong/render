@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hittable.h"
+#include "geometry/hittable.h"
 #include "core/aabb.h"
 
 #include <memory>
@@ -20,7 +20,7 @@ public:
         size_t end
     );
 
-    bool intersect(const Ray& ray,double tMin,double tMax,HitRecord& rec) const override;
+    bool intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) const override;
 
     bool boundingBox(AABB& outputBox) const override;
 };
