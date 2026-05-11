@@ -19,6 +19,7 @@
 #include "core/stats.h"
 #include "core/random.h"
 #include "geometry/mesh.h"
+#include "io/obj_loader.h"
 
 
 namespace {
@@ -138,11 +139,11 @@ int main() {
     ));
 
     // 盒子中的红球
-    scene.add(std::make_shared<Sphere>(
+    /*scene.add(std::make_shared<Sphere>(
         Point3(-0.35, -0.15, -1.85),
         0.35,
         &redMat
-    ));
+    ));*/
 
     // 盒子中的蓝球
     /*scene.add(std::make_shared<Sphere>(
@@ -204,7 +205,7 @@ int main() {
     }*/
 
     //批量生成三角形
-    const int triCountX = 20;
+    /*const int triCountX = 20;
     const int triCountY = 10;
 
     Lambertian triMat(Color(0.2, 0.6, 0.9));
@@ -222,9 +223,9 @@ int main() {
                 &triMat
             ));
         }
-    }
+    }*/
 
-    auto pyramid = std::make_shared<Mesh>();
+    /*auto pyramid = std::make_shared<Mesh>();
 
     Point3 p0(-0.35, -0.50, -2.15);
     Point3 p1(0.35, -0.50, -2.15);
@@ -244,8 +245,32 @@ int main() {
 
     pyramid->buildBVH();
 
-    scene.add(pyramid);
+    scene.add(pyramid);*/
 
+    //Lambertian meshMat(Color(0.85, 0.65, 0.25));
+
+    /*auto objMesh = loadOBJ(
+        "D:/Program/Project/mini_renderer/models/simple_pyramid.obj",
+        &meshMat
+    );
+
+    scene.add(objMesh);*/
+
+    //OBJ 自动缩放 + 自动居中
+    Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
+
+    auto bunny = loadOBJ(
+        "D:/Program/Project/mini_renderer/models/bunny.obj",
+        &bunnyMat,
+
+        // 模型最长边最终大小
+        0.75,
+
+        // 放到 Cornell Box 中间
+        Point3(0.0, -0.25, -2.0)
+    );
+
+    scene.add(bunny);
 
 
     // 所有物体添加完成后构建 BVH
@@ -400,5 +425,39 @@ Quad intersect calls:      154048148
 Triangle intersect calls:  106157659
 Mesh intersect calls:      7306038
 Primitive intersect calls: 266901718
+====================
+*/
+
+/*Stanford Bunny
+=== OBJ Normalize Info ===
+Original bbox min: -0.35, -0.5, -2.85
+Original bbox max: 0.35, 0.25, -2.15
+Original center: 0, -0.125, -2.5
+Scale factor: 1.33333
+Loaded OBJ: D:/Program/Project/mini_renderer/models/simple_pyramid.obj
+Vertices: 5
+Triangles: 6
+
+=== OBJ Normalize Info ===
+Original bbox min: -0.0943804, 0.0333099, -0.0616792
+Original bbox max: 0.0607788, 0.186996, 0.0587146
+Original center: -0.0168008, 0.110153, -0.00148226
+Scale factor: 6.44499
+Loaded OBJ: D:/Program/Project/mini_renderer/models/bunny.obj
+Vertices: 2503
+Triangles: 4968
+Rendering line 225 / 225
+Render finished: D:/Program/Project/mini_renderer\output\render_20260510_143159.ppm
+
+=== Render Stats ===
+Render time seconds:       562.819
+Scene intersect calls:     163681593
+BVH node intersect calls:  2455459573
+AABB hit calls:            2455459573
+Sphere intersect calls:    1328
+Quad intersect calls:      273412122
+Triangle intersect calls:  995286136
+Mesh intersect calls:      327359324
+Primitive intersect calls: 1268699586
 ====================
 */
