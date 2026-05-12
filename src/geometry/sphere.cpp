@@ -31,6 +31,7 @@ bool Sphere::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec)
 
     Vec3 outwardNormal = (rec.p - center) / radius;
     rec.setFaceNormal(ray, outwardNormal);
+    rec.shadingNormal = rec.geometricNormal;
 
     rec.material = material;
     return true;

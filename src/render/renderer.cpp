@@ -97,7 +97,7 @@ namespace {
 
         double cosSurface = std::max(
             0.0,
-            dot(rec.normal.normalized(), wi)
+            dot(rec.shadingNormal.normalized(), wi)
         );
 
         if (cosSurface <= 0.0) {
@@ -111,7 +111,7 @@ namespace {
             return Color(0.0, 0.0, 0.0);
         }
 
-        Ray shadowRay(rec.p + rec.normal * 1e-4, wi);
+        Ray shadowRay(rec.p + rec.geometricNormal * 1e-4, wi);
 
         HitRecord shadowRec;
         if (scene.intersect(
@@ -125,7 +125,7 @@ namespace {
 
         Color f = rec.material->eval(
             wo,
-            rec.normal,
+            rec.shadingNormal,
             wi
         );
 
@@ -135,7 +135,7 @@ namespace {
 
         double pdfBsdf = rec.material->pdfValue(
             wo,
-            rec.normal,
+            rec.shadingNormal,
             wi
         );
 
@@ -218,7 +218,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         bool ok = rec.material->sample(
             wo,
-            rec.normal,
+            rec.shadingNormal,
             wi,
             f,
             pdfBsdf
@@ -232,7 +232,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         double cosTheta = std::max(
             0.0,
-            dot(rec.normal.normalized(), wi)
+            dot(rec.shadingNormal.normalized(), wi)
         );
 
         if (cosTheta <= 0.0) {
@@ -256,7 +256,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         previousPoint = rec.p;
         previousWi = wi;
 
-        ray = Ray(rec.p + rec.normal * 1e-4, wi);
+        ray = Ray(rec.p + rec.geometricNormal * 1e-4, wi);
     }
 
     return L;

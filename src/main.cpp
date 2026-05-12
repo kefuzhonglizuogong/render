@@ -49,7 +49,7 @@ int main() {
     const int imageWidth = 400;//300
     const int imageHeight = static_cast<int>(imageWidth / aspectRatio);
 
-    const int samplesPerPixel = 200;//20
+    const int samplesPerPixel = 800;
     const int maxDepth = 12;//8
 
     Scene scene;
@@ -153,12 +153,12 @@ int main() {
     ));*/
 
     //盒子中的蓝色三角形
-    scene.add(std::make_shared<Triangle>(
+    /*scene.add(std::make_shared<Triangle>(
         Point3(0.15, -0.45, -2.55),
         Point3(0.85, -0.45, -2.55),
         Point3(0.50, 0.35, -2.55),
         &triangleMat
-    ));
+    ));*/
 
     //批量生成小球
     /*const int sphereCountX = 10;
@@ -267,7 +267,7 @@ int main() {
         0.75,
 
         // 放到 Cornell Box 中间
-        Point3(0.0, -0.25, -2.0)
+        Point3(0.0, 0.0, -1.0)
     );
 
     scene.add(bunny);

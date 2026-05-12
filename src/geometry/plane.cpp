@@ -17,6 +17,7 @@ bool Plane::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) 
     rec.t = t;
     rec.p = ray.at(t);
     rec.setFaceNormal(ray, normal);
+    rec.shadingNormal = rec.geometricNormal;
     rec.material = material;
 
     return true;

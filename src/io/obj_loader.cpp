@@ -1,34 +1,108 @@
 #include "io/obj_loader.h"
 
+#include <algorithm>
 #include <fstream>
-#include <sstream>
 #include <iostream>
-#include <vector>
+#include <sstream>
 #include <string>
+#include <vector>
 
 namespace {
-    int parseVertexIndex(const std::string& token) {
-        // 支持：
-        // f 1 2 3
-        // f 1/1 2/2 3/3
-        // f 1//1 2//2 3//3
-        // f 1/1/1 2/2/2 3/3/3
+    struct FaceVertex {
+        int vertexIndex = -1;
+        int normalIndex = -1;
+    };
 
-        std::string indexText;
+    bool parseInteger(const std::string& text, int& value) {
+        if (text.empty()) {
+            return false;
+        }
+
+        try {
+            size_t parsedLength = 0;
+            value = std::stoi(text, &parsedLength);
+            return parsedLength == text.size();
+        }
+        catch (...) {
+            return false;
+        }
+    }
+
+    int resolveOBJIndex(int objIndex, int count) {
+        if (objIndex > 0) {
+            return objIndex - 1;
+        }
+
+        if (objIndex < 0) {
+            return count + objIndex;
+        }
+
+        return -1;
+    }
+
+    bool parseFaceVertex(
+        const std::string& token,
+        int vertexCount,
+        int normalCount,
+        FaceVertex& faceVertex
+    ) {
+        std::vector<std::string> parts;
+        std::string part;
 
         for (char c : token) {
             if (c == '/') {
-                break;
+                parts.push_back(part);
+                part.clear();
+            }
+            else {
+                part.push_back(c);
+            }
+        }
+
+        parts.push_back(part);
+
+        int objVertexIndex = 0;
+        if (!parseInteger(parts[0], objVertexIndex) || objVertexIndex == 0) {
+            std::cerr << "Invalid OBJ vertex index token: " << token << std::endl;
+            return false;
+        }
+
+        faceVertex.vertexIndex = resolveOBJIndex(objVertexIndex, vertexCount);
+
+        if (faceVertex.vertexIndex < 0 || faceVertex.vertexIndex >= vertexCount) {
+            std::cerr << "OBJ vertex index out of range: " << objVertexIndex << std::endl;
+            return false;
+        }
+
+        faceVertex.normalIndex = -1;
+
+        if (parts.size() >= 3 && !parts[2].empty()) {
+            int objNormalIndex = 0;
+            if (!parseInteger(parts[2], objNormalIndex) || objNormalIndex == 0) {
+                std::cerr << "Invalid OBJ normal index token: " << token << std::endl;
+                return false;
             }
 
-            indexText.push_back(c);
+            faceVertex.normalIndex = resolveOBJIndex(objNormalIndex, normalCount);
+
+            if (faceVertex.normalIndex < 0 || faceVertex.normalIndex >= normalCount) {
+                std::cerr << "OBJ normal index out of range: " << objNormalIndex << std::endl;
+                return false;
+            }
         }
 
-        if (indexText.empty()) {
-            return -1;
-        }
+        return true;
+    }
 
-        return std::stoi(indexText);
+    bool hasCompleteVertexNormals(
+        const std::vector<FaceVertex>& face,
+        size_t i0,
+        size_t i1,
+        size_t i2
+    ) {
+        return face[i0].normalIndex >= 0 &&
+            face[i1].normalIndex >= 0 &&
+            face[i2].normalIndex >= 0;
     }
 }
 
@@ -48,61 +122,59 @@ std::shared_ptr<Mesh> loadOBJ(
     }
 
     std::vector<Point3> vertices;
-
-    // 保存所有 face 的顶点索引
-    std::vector<std::vector<int>> faces;
+    std::vector<Vec3> normals;
+    std::vector<std::vector<FaceVertex>> faces;
 
     std::string line;
 
     while (std::getline(file, line)) {
-        if (line.empty()) {
-            continue;
+        size_t commentStart = line.find('#');
+        if (commentStart != std::string::npos) {
+            line = line.substr(0, commentStart);
         }
 
         std::istringstream iss(line);
 
         std::string prefix;
-        iss >> prefix;
+        if (!(iss >> prefix)) {
+            continue;
+        }
 
         if (prefix == "v") {
             double x, y, z;
-            iss >> x >> y >> z;
-
-            vertices.emplace_back(x, y, z);
+            if (iss >> x >> y >> z) {
+                vertices.emplace_back(x, y, z);
+            }
+        }
+        else if (prefix == "vn") {
+            double x, y, z;
+            if (iss >> x >> y >> z) {
+                normals.emplace_back(Vec3(x, y, z).normalized());
+            }
         }
         else if (prefix == "f") {
-            std::vector<int> indices;
+            std::vector<FaceVertex> face;
             std::string token;
+            bool validFace = true;
 
             while (iss >> token) {
-                int objIndex = parseVertexIndex(token);
+                FaceVertex faceVertex;
 
-                if (objIndex == 0) {
-                    std::cerr << "OBJ index 0 is invalid.\n";
-                    continue;
+                if (!parseFaceVertex(
+                    token,
+                    static_cast<int>(vertices.size()),
+                    static_cast<int>(normals.size()),
+                    faceVertex
+                )) {
+                    validFace = false;
+                    break;
                 }
 
-                if (objIndex < 0) {
-                    // 先支持负索引：-1 表示最后一个顶点
-                    objIndex = static_cast<int>(vertices.size()) + objIndex + 1;
-                }
-
-                int zeroBasedIndex = objIndex - 1;
-
-                if (
-                    zeroBasedIndex < 0 ||
-                    zeroBasedIndex >= static_cast<int>(vertices.size())
-                    ) {
-                    std::cerr << "OBJ vertex index out of range: "
-                        << objIndex << std::endl;
-                    continue;
-                }
-
-                indices.push_back(zeroBasedIndex);
+                face.push_back(faceVertex);
             }
 
-            if (indices.size() >= 3) {
-                faces.push_back(indices);
+            if (validFace && face.size() >= 3) {
+                faces.push_back(face);
             }
         }
     }
@@ -116,7 +188,6 @@ std::shared_ptr<Mesh> loadOBJ(
     Point3 maxP = vertices[0];
 
     for (const auto& v : vertices) {
-
         minP.x = std::min(minP.x, v.x);
         minP.y = std::min(minP.y, v.y);
         minP.z = std::min(minP.z, v.z);
@@ -126,11 +197,9 @@ std::shared_ptr<Mesh> loadOBJ(
         maxP.z = std::max(maxP.z, v.z);
     }
 
-    Point3 originalCenter =0.5 * (minP + maxP);
-
+    Point3 originalCenter = 0.5 * (minP + maxP);
     Vec3 extent = maxP - minP;
-
-    double maxExtent =std::max(extent.x,std::max(extent.y, extent.z));
+    double maxExtent = std::max(extent.x, std::max(extent.y, extent.z));
 
     double scale = 1.0;
 
@@ -138,83 +207,60 @@ std::shared_ptr<Mesh> loadOBJ(
         scale = targetSize / maxExtent;
     }
 
-    // =====================================================
-    // 调试输出
-    // =====================================================
-
     std::cout << "\n=== OBJ Normalize Info ===\n";
-    std::cout << "Original bbox min: "<< minP.x << ", "<< minP.y << ", "<< minP.z << "\n";
-    std::cout << "Original bbox max: "<< maxP.x << ", "<< maxP.y << ", "<< maxP.z << "\n";
-    std::cout << "Original center: "<< originalCenter.x << ", "<< originalCenter.y << ", "<< originalCenter.z << "\n";
-    std::cout << "Scale factor: "<< scale << "\n";
-
-    // =====================================================
-    // 统一变换顶点
-    // =====================================================
+    std::cout << "Original bbox min: " << minP.x << ", " << minP.y << ", " << minP.z << "\n";
+    std::cout << "Original bbox max: " << maxP.x << ", " << maxP.y << ", " << maxP.z << "\n";
+    std::cout << "Original center: " << originalCenter.x << ", " << originalCenter.y << ", " << originalCenter.z << "\n";
+    std::cout << "Scale factor: " << scale << "\n";
 
     std::vector<Point3> transformedVertices;
-
     transformedVertices.reserve(vertices.size());
 
     for (const auto& v : vertices) {
-
-        // 移动到局部原点
         Point3 local = v - originalCenter;
-
-        // 统一缩放
         Point3 scaled = local * scale;
-
-        // 放到目标位置
-        Point3 transformed =
-            scaled + targetCenter;
+        Point3 transformed = scaled + targetCenter;
 
         transformedVertices.push_back(transformed);
     }
 
-    // =====================================================
-    // 真正生成 Triangle
-    // =====================================================
+    auto addTriangleFromFace = [&](const std::vector<FaceVertex>& face, size_t i0, size_t i1, size_t i2) {
+        const FaceVertex& fv0 = face[i0];
+        const FaceVertex& fv1 = face[i1];
+        const FaceVertex& fv2 = face[i2];
 
-    for (const auto& indices : faces) {
-
-        if (indices.size() < 3) {
-            continue;
-        }
-
-        // 三角形
-        if (indices.size() == 3) {
-
+        if (hasCompleteVertexNormals(face, i0, i1, i2)) {
             mesh->addTriangle(
-                transformedVertices[indices[0]],
-                transformedVertices[indices[1]],
-                transformedVertices[indices[2]],
+                transformedVertices[fv0.vertexIndex],
+                transformedVertices[fv1.vertexIndex],
+                transformedVertices[fv2.vertexIndex],
+                normals[fv0.normalIndex],
+                normals[fv1.normalIndex],
+                normals[fv2.normalIndex],
                 material
             );
         }
+        else {
+            mesh->addTriangle(
+                transformedVertices[fv0.vertexIndex],
+                transformedVertices[fv1.vertexIndex],
+                transformedVertices[fv2.vertexIndex],
+                material
+            );
+        }
+    };
 
-        // 四边形 / 多边形
-        // fan triangulation
-        if (indices.size() > 3) {
-
-            for (size_t i = 1;
-                i + 1 < indices.size();
-                ++i)
-            {
-                mesh->addTriangle(
-                    transformedVertices[indices[0]],
-                    transformedVertices[indices[i]],
-                    transformedVertices[indices[i + 1]],
-                    material
-                );
-            }
+    for (const auto& face : faces) {
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            addTriangleFromFace(face, 0, i, i + 1);
         }
     }
-
 
     mesh->buildBVH();
 
     std::cout << "Loaded OBJ: " << filename << std::endl;
     std::cout << "Vertices: " << vertices.size() << std::endl;
+    std::cout << "Vertex normals: " << normals.size() << std::endl;
     std::cout << "Triangles: " << mesh->triangles.size() << std::endl;
 
     return mesh;

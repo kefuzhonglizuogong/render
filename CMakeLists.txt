@@ -44,6 +44,7 @@ add_executable(mini_path_tracer
     include/render/film.h
     include/render/renderer.h
     include/render/scene.h
- "include/geometry/mesh.h" "src/geometry/mesh.cpp" "include/io/obj_loader.h" "src/io/obj_loader.cpp")
+    include/io/obj_loader.h
+)
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

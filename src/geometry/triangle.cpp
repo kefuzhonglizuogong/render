@@ -1,10 +1,30 @@
 #include "geometry/triangle.h"
 #include "core/stats.h"
 
+#include <algorithm>
 #include <cmath>
 
 Triangle::Triangle(const Point3& a, const Point3& b, const Point3& c, Material* m): v0(a), v1(b), v2(c), material(m) {
     normal = cross(v1 - v0, v2 - v0).normalized();
+    n0 = normal;
+    n1 = normal;
+    n2 = normal;
+}
+
+Triangle::Triangle(
+    const Point3& a,
+    const Point3& b,
+    const Point3& c,
+    const Vec3& normal0,
+    const Vec3& normal1,
+    const Vec3& normal2,
+    Material* m
+) : v0(a), v1(b), v2(c), material(m) {
+    normal = cross(v1 - v0, v2 - v0).normalized();
+    n0 = normal0.normalized();
+    n1 = normal1.normalized();
+    n2 = normal2.normalized();
+    hasVertexNormals = true;
 }
 
 bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) const {
@@ -46,12 +66,20 @@ bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& re
 
     rec.t = t;
     rec.p = ray.at(t);
-    rec.normal = normal;
+    rec.setFaceNormal(ray, normal);
 
-    if (dot(ray.direction, rec.normal) > 0.0) {
-        rec.normal = -rec.normal;
+    double w = 1.0 - u - v;
+    Vec3 interpolatedNormal = (w * n0 + u * n1 + v * n2).normalized();
+
+    if (interpolatedNormal.lengthSquared() <= 0.0) {
+        interpolatedNormal = normal;
     }
 
+    if (!rec.frontFace) {
+        interpolatedNormal = -interpolatedNormal;
+    }
+
+    rec.shadingNormal = interpolatedNormal;
     rec.material = material;
 
     return true;

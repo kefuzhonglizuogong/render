@@ -25,6 +25,16 @@ public:
     );
 
     void addTriangle(
+        const Point3& v0,
+        const Point3& v1,
+        const Point3& v2,
+        const Vec3& n0,
+        const Vec3& n1,
+        const Vec3& n2,
+        Material* material
+    );
+
+    void addTriangle(
         const std::shared_ptr<Triangle>& triangle
     );
 

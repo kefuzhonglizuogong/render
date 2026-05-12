@@ -52,11 +52,8 @@ bool Quad::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) c
 
     rec.t = t;
     rec.p = p;
-    rec.normal = normal;
-
-    if (dot(ray.direction, rec.normal) > 0.0) {
-        rec.normal = -rec.normal;
-    }
+    rec.setFaceNormal(ray, normal);
+    rec.shadingNormal = rec.geometricNormal;
 
     rec.material = material;
 
