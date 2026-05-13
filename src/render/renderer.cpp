@@ -2,6 +2,7 @@
 #include "material/material.h"
 #include "core/random.h"
 #include "light/light.h"
+#include "material/bsdf_sample.h"
 
 #include <iostream>
 #include <algorithm>
@@ -158,10 +159,12 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
     Ray ray = rayIn;
 
-    bool previousWasBsdfSample = false;
-    double previousBsdfPdf = 0.0;
+    bool previousWasBsdfSample = false;// 上一次是按材质方向反弹的
+    double previousBsdfPdf = 0.0;// 上一次反弹的概率
     Point3 previousPoint;
     Vec3 previousWi;
+    bool previousWasDelta = false;
+
 
     for (int bounce = 0; bounce < depth; ++bounce) {
         HitRecord rec;
@@ -188,6 +191,11 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             if (bounce == 0) {
                 L += beta * emitted;
             }
+            else if (previousWasDelta) {
+                // delta 路径没有 competing light sampling pdf，
+                // MIS 权重视为 1。
+                L += beta * emitted;
+            }
             else if (previousWasBsdfSample) {
                 double pdfLight = lightPdfSum(
                     scene,
@@ -212,34 +220,38 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         L += beta * directLight;
 
-        Vec3 wi;
-        Color f;
-        double pdfBsdf = 0.0;
+        BSDFSample bsdfSample = rec.material->sample(wo,rec.shadingNormal);
+        /*bsdfSample里面包含
+            wi：下一条光线反射方向
+            f：反射率 / 颜色
+            pdf：这个方向的概率
+            isDelta：是不是镜面 / 玻璃（只有一个方向）
+            valid：是否有效
+        */
 
-        bool ok = rec.material->sample(
-            wo,
-            rec.shadingNormal,
-            wi,
-            f,
-            pdfBsdf
-        );
-
-        if (!ok || pdfBsdf <= 1e-12) {
+        if (!bsdfSample.valid || bsdfSample.pdf <= 1e-12) {
             break;
         }
 
-        wi = wi.normalized();
+        Vec3 wi = bsdfSample.wi.normalized();
+        Color f = bsdfSample.f;
+        double pdfBsdf = bsdfSample.pdf;
 
-        double cosTheta = std::max(
-            0.0,
-            dot(rec.shadingNormal.normalized(), wi)
-        );
-
-        if (cosTheta <= 0.0) {
-            break;
+        if (bsdfSample.isDelta) {
+            beta = beta * f;
         }
+        else {
+            double cosTheta = std::max(
+                0.0,
+                dot(rec.shadingNormal.normalized(), wi)
+            );
 
-        beta = beta * f * (cosTheta / pdfBsdf);
+            if (cosTheta <= 0.0) {
+                break;
+            }
+
+            beta = beta * f * (cosTheta / pdfBsdf);
+        }
 
         if (bounce >= 3) {
             double p = std::min(maxComponent(beta), 0.95);
@@ -252,7 +264,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         }
 
         previousWasBsdfSample = true;
-        previousBsdfPdf = pdfBsdf;
+        previousWasDelta = bsdfSample.isDelta;
+        previousBsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
         previousPoint = rec.p;
         previousWi = wi;
 

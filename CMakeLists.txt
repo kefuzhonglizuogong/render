@@ -39,6 +39,7 @@ add_executable(mini_path_tracer
     include/geometry/triangle.h
     include/image/image.h
     include/light/light.h
+    include/material/bsdf_sample.h
     include/material/material.h
     include/render/camera.h
     include/render/film.h

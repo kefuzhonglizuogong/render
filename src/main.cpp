@@ -49,8 +49,8 @@ int main() {
     const int imageWidth = 400;//300
     const int imageHeight = static_cast<int>(imageWidth / aspectRatio);
 
-    const int samplesPerPixel = 800;
-    const int maxDepth = 12;//8
+    const int samplesPerPixel = 200;
+    const int maxDepth = 6;
 
     Scene scene;
 
@@ -67,7 +67,7 @@ int main() {
     Lambertian smallGreenMat(Color(0.2, 0.8, 0.2));
     Lambertian smallBlueMat(Color(0.2, 0.3, 0.9));
     Lambertian smallWhiteMat(Color(0.75, 0.75, 0.75));
-
+    
 
     DiffuseLight lightMat(Color(12.0, 12.0, 12.0));
 
@@ -256,21 +256,31 @@ int main() {
 
     scene.add(objMesh);*/
 
-    //OBJ 自动缩放 + 自动居中
-    Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
+    //兔子
+    /*Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
         "D:/Program/Project/mini_renderer/models/bunny.obj",
         &bunnyMat,
 
         // 模型最长边最终大小
-        0.75,
+        0.65,
 
         // 放到 Cornell Box 中间
         Point3(0.0, 0.0, -1.0)
-    );
+    
+        scene.add(bunny);
+    );*/
 
-    scene.add(bunny);
+    //玻璃球
+    Mirror mirrorMat(Color(0.95, 0.95, 0.95));
+    scene.add(std::make_shared<Sphere>(
+        Point3(0.35, -0.20, -2.15),
+        0.30,
+        &mirrorMat
+    ));
+
+
 
 
     // 所有物体添加完成后构建 BVH

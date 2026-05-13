@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/vec3.h"
+#include "material/bsdf_sample.h"
 
 class Material {
 public:
@@ -20,12 +21,9 @@ public:
         const Vec3& wi
     ) const = 0;
 
-    virtual bool sample(
+    virtual BSDFSample sample(
         const Vec3& wo,
-        const Vec3& normal,
-        Vec3& wi,
-        Color& f,
-        double& pdf
+        const Vec3& normal
     ) const = 0;
 };
 
@@ -47,12 +45,9 @@ public:
         const Vec3& wi
     ) const override;
 
-    bool sample(
+    BSDFSample sample(
         const Vec3& wo,
-        const Vec3& normal,
-        Vec3& wi,
-        Color& f,
-        double& pdf
+        const Vec3& normal
     ) const override;
 };
 
@@ -76,11 +71,32 @@ public:
         const Vec3& wi
     ) const override;
 
-    bool sample(
+    BSDFSample sample(
+        const Vec3& wo,
+        const Vec3& normal
+    ) const override;
+};
+
+class Mirror : public Material {
+public:
+    Color albedo;
+
+    explicit Mirror(const Color& a);
+
+    Color eval(
         const Vec3& wo,
         const Vec3& normal,
-        Vec3& wi,
-        Color& f,
-        double& pdf
+        const Vec3& wi
+    ) const override;
+
+    double pdfValue(
+        const Vec3& wo,
+        const Vec3& normal,
+        const Vec3& wi
+    ) const override;
+
+    BSDFSample sample(
+        const Vec3& wo,
+        const Vec3& normal
     ) const override;
 };
