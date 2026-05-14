@@ -17,6 +17,7 @@
 #include "render/film.h"
 #include "render/renderer.h"
 #include "render/render_config.h"
+#include "render/test_scenes.h"
 #include "light/light.h"
 #include "light/environment_light.h"
 #include "light/environment_debug.h"
@@ -26,6 +27,7 @@
 #include "io/obj_loader.h"
 #include "io/image_loader.h"
 #include "image/float_image.h"
+
 
 
 
@@ -129,10 +131,7 @@ int main() {
         config.environmentIntensity
     );
 
-    auto envLight =
-        std::make_shared<LatLongEnvironmentLight>(
-            envImage
-        );
+    auto envLight =std::make_shared<LatLongEnvironmentLight>(envImage);
 
     /*debugEnvironmentSampling(
         *envLight,
@@ -140,7 +139,8 @@ int main() {
     );*/
 
     scene.setEnvironment(envLight);
-
+    
+    /*
     Lambertian whiteMat(Color(0.75, 0.75, 0.75));
     Lambertian redMat(Color(0.75, 0.15, 0.15));
     Lambertian greenMat(Color(0.15, 0.75, 0.15));
@@ -171,7 +171,7 @@ int main() {
         Vec3(0.0, 0.0, -2.0),
         &whiteMat
     ));
-/*
+
     // 天花板
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, 1.5, -3.0),
@@ -355,7 +355,7 @@ int main() {
             config.meshCenterZ
         )
     );
-    scene.add(bunny);*/
+    scene.add(bunny);
 
     //GGXMetal球
     Mirror mirrorMat(Color(0.95, 0.95, 0.95));
@@ -375,6 +375,7 @@ int main() {
         0.30,
         &glass
     ));
+    */
 
     /*GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
     GGXMetal roughSilver(Color(0.9, 0.9, 0.9), 0.12);
@@ -397,6 +398,8 @@ int main() {
         100000
     );*/
 
+
+    buildMaterialTestScene(scene);
 
     // 所有物体添加完成后构建 BVH
     if (config.enableBVH) {
