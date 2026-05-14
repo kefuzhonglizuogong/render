@@ -3,6 +3,12 @@
 #include "core/vec3.h"
 #include "material/bsdf_sample.h"
 
+
+/*
+eval()：这个方向的 BRDF 值是多少
+pdfValue()：采到这个方向的概率是多少
+sample()：怎么按重要性采样方向
+*/
 class Material {
 public:
     virtual ~Material() = default;

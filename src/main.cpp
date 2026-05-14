@@ -12,6 +12,7 @@
 #include "geometry/quad.h"
 #include "geometry/triangle.h"
 #include "material/material.h"
+#include "material/bsdf_debug.h"
 #include "render/camera.h"
 #include "render/film.h"
 #include "render/renderer.h"
@@ -20,6 +21,7 @@
 #include "core/random.h"
 #include "geometry/mesh.h"
 #include "io/obj_loader.h"
+
 
 
 namespace {
@@ -279,7 +281,7 @@ int main() {
         &mirrorMat
     ));*/
 
-    GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
+    /*GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
     GGXMetal roughSilver(Color(0.9, 0.9, 0.9), 0.12);
 
     GGXMetal metalVerySmooth(Color(0.9, 0.9, 0.9), 0.05);
@@ -289,9 +291,16 @@ int main() {
         Point3(0.25, -0.20, -2.15),
         0.30,
         &metalRough
-    ));
+    ));*/
 
+    GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
 
+    debugBSDFSampling(
+        debugMetal,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
 
 
     // 所有物体添加完成后构建 BVH
@@ -481,4 +490,30 @@ Triangle intersect calls:  995286136
 Mesh intersect calls:      327359324
 Primitive intersect calls: 1268699586
 ====================
+*/
+
+/*BSDF 调试结果（GGX 采样）
+=== BSDF Sampling Debug ===   GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.25);
+Sample count:       100000
+Valid samples:      99597
+Invalid samples:    403
+Zero pdf samples:   0
+Min pdf:            0.00123544
+Max pdf:            20.3712
+Min weight:         0.0197446
+Max weight:         0.9
+Avg weight:         0.899626
+===========================
+
+=== BSDF Sampling Debug ===   GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
+Sample count:       100000
+Valid samples:      99999
+Invalid samples:    1
+Zero pdf samples:   0
+Min pdf:            1.71077e-05
+Max pdf:            12732.3
+Min weight:         0.899999
+Max weight:         0.9
+Avg weight:         0.9
+===========================
 */

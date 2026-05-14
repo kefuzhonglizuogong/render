@@ -23,6 +23,7 @@ add_executable(mini_path_tracer
     src/geometry/bvh.cpp
     src/core/stats.cpp
     src/io/obj_loader.cpp
+    src/material/bsdf_debug.cpp
     include/core/aabb.h
     include/core/frame.h
     include/core/random.h
@@ -46,6 +47,6 @@ add_executable(mini_path_tracer
     include/render/renderer.h
     include/render/scene.h
     include/io/obj_loader.h
-)
+ "include/material/bsdf_debug.h" "src/material/bsdf_debug.cpp")
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
