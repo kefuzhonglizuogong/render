@@ -25,11 +25,7 @@ namespace {
         return v - 2.0 * dot(v, n) * n;
     }
 
-    double ggxD(
-        const Vec3& n,
-        const Vec3& h,
-        double alpha
-    ) {
+    double ggxD(const Vec3& n,const Vec3& h,double alpha) {
         double NoH = std::max(0.0, dot(n, h));
         double a2 = alpha * alpha;
 
@@ -39,11 +35,7 @@ namespace {
         return a2 / (PI * denom * denom);
     }
 
-    double smithG1(
-        const Vec3& n,
-        const Vec3& v,
-        double alpha
-    ) {
+    double smithG1(const Vec3& n,const Vec3& v,double alpha) {
         double NoV = std::max(0.0, dot(n, v));
 
         if (NoV <= 0.0) {
@@ -57,20 +49,12 @@ namespace {
             (NoV + std::sqrt(a2 + (1.0 - a2) * NoV2));
     }
 
-    double smithG(
-        const Vec3& n,
-        const Vec3& wo,
-        const Vec3& wi,
-        double alpha
-    ) {
+    double smithG(const Vec3& n,const Vec3& wo,const Vec3& wi,double alpha) {
         return smithG1(n, wo, alpha) *
             smithG1(n, wi, alpha);
     }
 
-    Color fresnelSchlick(
-        double cosTheta,
-        const Color& F0
-    ) {
+    Color fresnelSchlick(double cosTheta,const Color& F0) {
         double x = clampDouble(1.0 - cosTheta, 0.0, 1.0);
         double x2 = x * x;
         double x5 = x2 * x2 * x;
@@ -78,10 +62,7 @@ namespace {
         return F0 + (Color(1.0, 1.0, 1.0) - F0) * x5;
     }
 
-    Vec3 sampleGGXHalfVector(
-        const Vec3& normal,
-        double alpha
-    ) {
+    Vec3 sampleGGXHalfVector(const Vec3& normal,double alpha) {
         double u1 = randomDouble();
         double u2 = randomDouble();
 
@@ -95,20 +76,46 @@ namespace {
                 (1.0 + (a2 - 1.0) * u2)
             );
 
-        double sinTheta =
-            std::sqrt(
-                std::max(0.0, 1.0 - cosTheta * cosTheta)
-            );
+        double sinTheta =std::sqrt(std::max(0.0, 1.0 - cosTheta * cosTheta));
 
-        Vec3 localH(
-            std::cos(phi) * sinTheta,
-            std::sin(phi) * sinTheta,
-            cosTheta
-        );
+        Vec3 localH(std::cos(phi) * sinTheta,std::sin(phi) * sinTheta,cosTheta);
 
         Frame frame(normal);
 
         return frame.toWorld(localH).normalized();
+    }
+    double schlickFresnel(double cosTheta,double etaI,double etaT) {
+        double r0 =(etaI - etaT) /(etaI + etaT);
+
+        r0 = r0 * r0;
+
+        double x = clampDouble(1.0 - cosTheta,0.0,1.0);
+
+        double x2 = x * x;
+        double x5 = x2 * x2 * x;
+
+        return r0 + (1.0 - r0) * x5;
+    }
+
+    bool refract(const Vec3& incident,const Vec3& normal,double etaRatio,Vec3& refracted) {
+        Vec3 i = incident.normalized();
+        Vec3 n = normal.normalized();
+
+        double cosTheta =std::min(dot(-i, n),1.0);
+
+        Vec3 rOutPerp =etaRatio * (i + cosTheta * n);
+
+        double k =1.0 - rOutPerp.lengthSquared();
+
+        if (k < 0.0) {
+            return false;
+        }
+
+        Vec3 rOutParallel =-std::sqrt(k) * n;
+
+        refracted =(rOutPerp + rOutParallel).normalized();
+
+        return true;
     }
 }
 
@@ -427,6 +434,86 @@ BSDFSample GGXMetal::sample(
     result.pdf = pdf;
     result.type = BSDFSampleType::Glossy;
     result.isDelta = false;
+    result.valid = true;
+
+    return result;
+}
+
+Dielectric::Dielectric(const Color& a,double indexOfRefraction): albedo(a),ior(indexOfRefraction) {
+}
+
+Color Dielectric::eval(const Vec3& wo,const Vec3& normal,const Vec3& wi) const {
+    (void)wo;
+    (void)normal;
+    (void)wi;
+
+    // 理想玻璃是 delta BSDF：
+    // 反射和折射都不是普通连续 BRDF。
+    return Color(0.0, 0.0, 0.0);
+}
+
+double Dielectric::pdfValue(const Vec3& wo,const Vec3& normal,const Vec3& wi) const {
+    (void)wo;
+    (void)normal;
+    (void)wi;
+
+    // delta distribution 没有普通 solid-angle pdf。
+    return 0.0;
+}
+
+BSDFSample Dielectric::sample(const Vec3& wo,const Vec3& normal) const {
+    BSDFSample result;
+
+    Vec3 n = normal.normalized();
+    Vec3 out = wo.normalized();
+
+    // 当前 ray 的入射方向，也就是路径继续前进前的方向
+    Vec3 incident = -out;
+
+    double cosTheta = std::min(dot(out, n),1.0);
+
+    cosTheta = std::max(0.0, cosTheta);
+
+    // 因为 HitRecord 里的 shadingNormal 已经被翻到朝向 ray 来源，
+    // 所以 dot(wo, n) 通常为正。
+    //
+    // 这个判断用于兼容未来没有翻转 normal 的情况。
+    bool entering = dot(out, n) > 0.0;
+
+    double etaI = entering ? 1.0 : ior;
+    double etaT = entering ? ior : 1.0;
+
+    double etaRatio = etaI / etaT;
+
+    double reflectProbability = schlickFresnel(cosTheta,etaI,etaT);
+
+    Vec3 refractedDirection;
+    bool canRefract = refract(incident,n,etaRatio,refractedDirection);
+
+    bool chooseReflection =!canRefract ||randomDouble() < reflectProbability;
+
+    if (chooseReflection) {
+        Vec3 reflected =
+            reflect(
+                incident,
+                n
+            ).normalized();
+
+        result.wi = reflected;
+        result.f = albedo;
+        result.pdf = 1.0;
+        result.type = BSDFSampleType::DeltaReflection;
+        result.isDelta = true;
+        result.valid = true;
+
+        return result;
+    }
+
+    result.wi = refractedDirection;
+    result.f = albedo;
+    result.pdf = 1.0;
+    result.type = BSDFSampleType::DeltaTransmission;
+    result.isDelta = true;
     result.valid = true;
 
     return result;

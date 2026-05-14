@@ -134,3 +134,37 @@ public:
         const Vec3& normal
     ) const override;
 };
+
+class Dielectric : public Material {
+public:
+    Color albedo;
+    double ior;//ior = index of refraction£¨’€…‰¬ 
+    /*
+    air     1.0
+    water   1.33
+    glass   1.5
+    diamond 2.4
+    */
+
+    Dielectric(
+        const Color& albedo,
+        double ior
+    );
+
+    Color eval(
+        const Vec3& wo,
+        const Vec3& normal,
+        const Vec3& wi
+    ) const override;
+
+    double pdfValue(
+        const Vec3& wo,
+        const Vec3& normal,
+        const Vec3& wi
+    ) const override;
+
+    BSDFSample sample(
+        const Vec3& wo,
+        const Vec3& normal
+    ) const override;
+};

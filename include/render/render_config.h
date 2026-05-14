@@ -10,7 +10,7 @@ struct RenderConfig {
     int imageWidth = 400;
     double aspectRatio = 16.0 / 9.0;
 
-    int samplesPerPixel = 100;
+    int samplesPerPixel = 200;
     int maxDepth = 12;
 
     // =====================================================
@@ -41,9 +41,9 @@ struct RenderConfig {
     // Mesh placement
     // =====================================================
 
-    double meshTargetSize = 1.0;
+    double meshTargetSize = 0.65;
 
-    double meshCenterX = 0.0;
-    double meshCenterY = -0.5;
-    double meshCenterZ = -2.4;
+    double meshCenterX = -0.3;
+    double meshCenterY = 0.0;
+    double meshCenterZ = -1.0;
 };

@@ -343,7 +343,7 @@ int main() {
     scene.add(objMesh);*/
 
     //ÍÃ×Ó
-    Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
+    /*Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
         config.objPath,
@@ -355,14 +355,25 @@ int main() {
             config.meshCenterZ
         )
     );
-    scene.add(bunny);
+    scene.add(bunny);*/
 
-    //²£Á§Çò
+    //GGXMetalÇò
     Mirror mirrorMat(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
         Point3(0.65, -0.20, -2.15),
         0.30,
         &mirrorMat
+    ));
+
+    //²£Á§Çò
+    Dielectric glass(
+        Color(1.0, 1.0, 1.0),
+        1.5
+    );
+    scene.add(std::make_shared<Sphere>(
+        Point3(0.05, -0.20, -2.15),
+        0.30,
+        &glass
     ));
 
     /*GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
