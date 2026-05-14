@@ -16,6 +16,7 @@
 #include "render/camera.h"
 #include "render/film.h"
 #include "render/renderer.h"
+#include "render/render_config.h"
 #include "light/light.h"
 #include "light/environment_light.h"
 #include "light/environment_debug.h"
@@ -30,6 +31,16 @@
 
 
 namespace {
+    std::filesystem::path projectPath(const std::string& path) {
+        const std::filesystem::path fsPath(path);
+
+        if (fsPath.empty() || fsPath.is_absolute()) {
+            return fsPath;
+        }
+
+        return std::filesystem::path(PROJECT_ROOT_DIR) / fsPath;
+    }
+
     std::filesystem::path makeOutputPath() {
         const std::filesystem::path outputDir = std::filesystem::path(PROJECT_ROOT_DIR) / "output";
         std::filesystem::create_directories(outputDir);
@@ -48,15 +59,30 @@ namespace {
         return outputDir / filenameBuilder.str();
     }
 
+    void resolveConfigPaths(RenderConfig& config) {
+        config.objPath = projectPath(config.objPath).string();
+        config.environmentPath = projectPath(config.environmentPath).string();
+
+        if (config.outputPath.empty()) {
+            config.outputPath = makeOutputPath().string();
+        }
+        else {
+            config.outputPath = projectPath(config.outputPath).string();
+        }
+    }
+
 }  // namespace
 
 int main() {
-    const double aspectRatio = 16.0 / 9.0;
-    const int imageWidth = 400;//300
+    RenderConfig config;
+    resolveConfigPaths(config);
+
+    const int imageWidth = config.imageWidth;
+    const double aspectRatio = config.aspectRatio;
     const int imageHeight = static_cast<int>(imageWidth / aspectRatio);
 
-    const int samplesPerPixel = 200;
-    const int maxDepth = 6;
+    const int samplesPerPixel = config.samplesPerPixel;
+    const int maxDepth = config.maxDepth;
 
     Scene scene;
 
@@ -99,8 +125,8 @@ int main() {
     }
     */
     FloatImage envImage = loadPPMImage(
-        "D:/Program/Project/mini_renderer/models/test_env.ppm",
-        8.0
+        config.environmentPath,
+        config.environmentIntensity
     );
 
     auto envLight =
@@ -320,14 +346,14 @@ int main() {
     Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
-        "D:/Program/Project/mini_renderer/models/bunny.obj",
+        config.objPath,
         &bunnyMat,
-
-        // 模型最长边最终大小
-        0.65,
-
-        // 放到 Cornell Box 中间
-        Point3(-0.3, 0.0, -1.0)
+        config.meshTargetSize,
+        Point3(
+            config.meshCenterX,
+            config.meshCenterY,
+            config.meshCenterZ
+        )
     );
     scene.add(bunny);
 
@@ -362,7 +388,9 @@ int main() {
 
 
     // 所有物体添加完成后构建 BVH
-    scene.buildBVH();
+    if (config.enableBVH) {
+        scene.buildBVH();
+    }
 
 
     Camera camera(aspectRatio);
@@ -375,13 +403,19 @@ int main() {
     renderer.render(scene, camera, film);
     auto endTime = std::chrono::high_resolution_clock::now();
 
-    const std::filesystem::path outputPath = makeOutputPath();
-    film.savePPM(outputPath.string(), samplesPerPixel);
+    const std::filesystem::path outputPath(config.outputPath);
+    if (!outputPath.parent_path().empty()) {
+        std::filesystem::create_directories(outputPath.parent_path());
+    }
+
+    film.savePPM(config.outputPath, samplesPerPixel);
 
     double renderSeconds =
         std::chrono::duration<double>(endTime - startTime).count();
 
-    std::cout << "Render finished: " << outputPath.string() << std::endl;
+    std::cout << "Render finished: "
+        << config.outputPath
+        << std::endl;
 
     std::cout << "\n=== Render Stats ===\n";
     std::cout << "Render time seconds:       " << renderSeconds << "\n";

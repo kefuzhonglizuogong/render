@@ -11,22 +11,22 @@ add_executable(mini_path_tracer
     src/main.cpp
     src/render/camera.cpp
     src/render/film.cpp
+    src/render/renderer.cpp
+    src/render/scene.cpp
     src/material/material.cpp
+    src/material/bsdf_debug.cpp
     src/geometry/plane.cpp
     src/geometry/quad.cpp
     src/geometry/triangle.cpp
     src/geometry/mesh.cpp
-    src/render/renderer.cpp
-    src/render/scene.cpp
     src/geometry/sphere.cpp
+    src/geometry/bvh.cpp
     src/light/light.cpp
     src/light/environment_light.cpp
     src/light/environment_debug.cpp
-    src/geometry/bvh.cpp
     src/core/stats.cpp
     src/io/obj_loader.cpp
     src/io/image_loader.cpp
-    src/material/bsdf_debug.cpp
     include/core/aabb.h
     include/core/frame.h
     include/core/random.h
@@ -41,15 +41,21 @@ add_executable(mini_path_tracer
     include/geometry/quad.h
     include/geometry/sphere.h
     include/geometry/triangle.h
+    include/image/float_image.h
     include/image/image.h
+    include/light/environment_debug.h
+    include/light/environment_light.h
     include/light/light.h
+    include/material/bsdf_debug.h
     include/material/bsdf_sample.h
     include/material/material.h
     include/render/camera.h
     include/render/film.h
+    include/render/render_config.h
     include/render/renderer.h
     include/render/scene.h
+    include/io/image_loader.h
     include/io/obj_loader.h
- "include/material/bsdf_debug.h" "src/material/bsdf_debug.cpp" "include/light/environment_light.h" "src/light/environment_light.cpp" "include/image/float_image.h" "include/light/environment_debug.h" "src/light/environment_debug.cpp" "include/io/image_loader.h" "src/io/image_loader.cpp")
+)
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
