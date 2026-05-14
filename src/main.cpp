@@ -17,6 +17,7 @@
 #include "render/film.h"
 #include "render/renderer.h"
 #include "light/light.h"
+#include "light/environment_light.h"
 #include "core/stats.h"
 #include "core/random.h"
 #include "geometry/mesh.h"
@@ -25,7 +26,6 @@
 
 
 namespace {
-
     std::filesystem::path makeOutputPath() {
         const std::filesystem::path outputDir = std::filesystem::path(PROJECT_ROOT_DIR) / "output";
         std::filesystem::create_directories(outputDir);
@@ -55,6 +55,12 @@ int main() {
     const int maxDepth = 6;
 
     Scene scene;
+
+    scene.setEnvironment(
+        std::make_shared<ConstantEnvironmentLight>(
+            Color(0.03, 0.04, 0.06)
+        )
+    );
 
     Lambertian whiteMat(Color(0.75, 0.75, 0.75));
     Lambertian redMat(Color(0.75, 0.15, 0.15));
@@ -274,12 +280,12 @@ int main() {
     );*/
 
     //玻璃球
-    /*Mirror mirrorMat(Color(0.95, 0.95, 0.95));
+    Mirror mirrorMat(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
-        Point3(0.35, -0.20, -2.15),
+        Point3(0.15, -0.10, -2.15),
         0.30,
         &mirrorMat
-    ));*/
+    ));
 
     /*GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
     GGXMetal roughSilver(Color(0.9, 0.9, 0.9), 0.12);
@@ -293,14 +299,14 @@ int main() {
         &metalRough
     ));*/
 
-    GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
+    /*GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
 
     debugBSDFSampling(
         debugMetal,
         Vec3(0.0, 1.0, 0.0),
         Vec3(0.0, 1.0, 0.0),
         100000
-    );
+    );*/
 
 
     // 所有物体添加完成后构建 BVH

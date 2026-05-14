@@ -13,6 +13,14 @@ void Scene::addLight(const std::shared_ptr<Light>& light) {
     lights.push_back(light);
 }
 
+void Scene::setEnvironment(const std::shared_ptr<EnvironmentLight>& env) {
+    environment = env;
+
+    if (env) {
+        lights.push_back(env);
+    }
+}
+
 void Scene::buildBVH() {
     if (objects.empty()) {
         bvhRoot = nullptr;

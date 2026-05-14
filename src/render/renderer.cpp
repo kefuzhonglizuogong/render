@@ -114,13 +114,10 @@ namespace {
 
         Ray shadowRay(rec.p + rec.geometricNormal * 1e-4, wi);
 
+        double shadowTMax =lightSample.isInfinite ?1e30 :lightSample.distance - 1e-4;
+
         HitRecord shadowRec;
-        if (scene.intersect(
-            shadowRay,
-            1e-4,
-            lightSample.distance - 1e-4,
-            shadowRec
-        )) {
+        if (scene.intersect(shadowRay,1e-4,shadowTMax,shadowRec)) {
             return Color(0.0, 0.0, 0.0);
         }
 
@@ -171,13 +168,20 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         if (!scene.intersect(ray, 1e-4, 1e30, rec)) {
             Vec3 unitDir = ray.direction.normalized();
-            double t = 0.5 * (unitDir.y + 1.0);
 
-            Color background =
-                (1.0 - t) * Color(1.0, 1.0, 1.0) +
-                t * Color(0.5, 0.7, 1.0);
+            if (scene.environment) {
+                L += beta * scene.environment->eval(unitDir);
+            }
+            else {
+                double t = 0.5 * (unitDir.y + 1.0);
 
-            L += beta * background;
+                Color background =
+                    (1.0 - t) * Color(1.0, 1.0, 1.0) +
+                    t * Color(0.5, 0.7, 1.0);
+
+                L += beta * background;
+            }
+
             break;
         }
 

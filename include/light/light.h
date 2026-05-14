@@ -9,6 +9,8 @@ struct LightSample {
     double distance;
     double pdf;
     Color emission;
+
+    bool isInfinite = false;
 };
 
 class Light {
