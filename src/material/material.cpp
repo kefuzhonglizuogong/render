@@ -9,8 +9,106 @@
 namespace {
     constexpr double PI = 3.14159265358979323846;
 
+    double clampDouble(double x, double a, double b) {
+        if (x < a) {
+            return a;
+        }
+
+        if (x > b) {
+            return b;
+        }
+
+        return x;
+    }
+
     Vec3 reflect(const Vec3& v, const Vec3& n) {
         return v - 2.0 * dot(v, n) * n;
+    }
+
+    double ggxD(
+        const Vec3& n,
+        const Vec3& h,
+        double alpha
+    ) {
+        double NoH = std::max(0.0, dot(n, h));
+        double a2 = alpha * alpha;
+
+        double denom =
+            NoH * NoH * (a2 - 1.0) + 1.0;
+
+        return a2 / (PI * denom * denom);
+    }
+
+    double smithG1(
+        const Vec3& n,
+        const Vec3& v,
+        double alpha
+    ) {
+        double NoV = std::max(0.0, dot(n, v));
+
+        if (NoV <= 0.0) {
+            return 0.0;
+        }
+
+        double a2 = alpha * alpha;
+        double NoV2 = NoV * NoV;
+
+        return 2.0 * NoV /
+            (NoV + std::sqrt(a2 + (1.0 - a2) * NoV2));
+    }
+
+    double smithG(
+        const Vec3& n,
+        const Vec3& wo,
+        const Vec3& wi,
+        double alpha
+    ) {
+        return smithG1(n, wo, alpha) *
+            smithG1(n, wi, alpha);
+    }
+
+    Color fresnelSchlick(
+        double cosTheta,
+        const Color& F0
+    ) {
+        double x = clampDouble(1.0 - cosTheta, 0.0, 1.0);
+        double x2 = x * x;
+        double x5 = x2 * x2 * x;
+
+        return F0 + (Color(1.0, 1.0, 1.0) - F0) * x5;
+    }
+
+    Vec3 sampleGGXHalfVector(
+        const Vec3& normal,
+        double alpha
+    ) {
+        double u1 = randomDouble();
+        double u2 = randomDouble();
+
+        double a2 = alpha * alpha;
+
+        double phi = 2.0 * PI * u1;
+
+        double cosTheta =
+            std::sqrt(
+                (1.0 - u2) /
+                (1.0 + (a2 - 1.0) * u2)
+            );
+
+        double sinTheta =
+            std::sqrt(
+                std::max(0.0, 1.0 - cosTheta * cosTheta)
+            );
+
+        Vec3 localH(
+            std::cos(phi) * sinTheta,
+            std::sin(phi) * sinTheta,
+            cosTheta
+        );
+
+        Frame frame(normal);
+
+        return frame.toWorld(localH).normalized();
     }
 }
 
@@ -194,6 +292,141 @@ BSDFSample Mirror::sample(
     result.pdf = 1.0;
     result.type = BSDFSampleType::DeltaReflection;
     result.isDelta = true;
+    result.valid = true;
+
+    return result;
+}
+
+GGXMetal::GGXMetal(
+    const Color& a,
+    double r
+)
+    : albedo(a),
+    roughness(r) {
+}
+
+Color GGXMetal::eval(
+    const Vec3& wo,
+    const Vec3& normal,
+    const Vec3& wi
+) const {
+    Vec3 n = normal.normalized();
+    Vec3 v = wo.normalized();
+    Vec3 l = wi.normalized();
+
+    double NoV = std::max(0.0, dot(n, v));
+    double NoL = std::max(0.0, dot(n, l));
+
+    if (NoV <= 0.0 || NoL <= 0.0) {
+        return Color(0.0, 0.0, 0.0);
+    }
+
+    Vec3 h = (v + l).normalized();
+
+    double VoH = std::max(0.0, dot(v, h));
+
+    double alpha = std::max(0.001, roughness * roughness);
+
+    double D = ggxD(n, h, alpha);
+    double G = smithG(n, v, l, alpha);
+    Color F = fresnelSchlick(VoH, albedo);
+
+    double denom = 4.0 * NoV * NoL;
+
+    if (denom <= 1e-12) {
+        return Color(0.0, 0.0, 0.0);
+    }
+
+    return F * (D * G / denom);
+}
+
+double GGXMetal::pdfValue(
+    const Vec3& wo,
+    const Vec3& normal,
+    const Vec3& wi
+) const {
+    Vec3 n = normal.normalized();
+    Vec3 v = wo.normalized();
+    Vec3 l = wi.normalized();
+
+    double NoV = std::max(0.0, dot(n, v));
+    double NoL = std::max(0.0, dot(n, l));
+
+    if (NoV <= 0.0 || NoL <= 0.0) {
+        return 0.0;
+    }
+
+    Vec3 h = (v + l).normalized();
+
+    double VoH = std::max(0.0, dot(v, h));
+    double NoH = std::max(0.0, dot(n, h));
+
+    if (VoH <= 1e-12 || NoH <= 0.0) {
+        return 0.0;
+    }
+
+    double alpha = std::max(0.001, roughness * roughness);
+
+    double D = ggxD(n, h, alpha);
+
+    // 先采样 half-vector h：
+    // pdf_h = D(h) * cosTheta_h
+    //
+    // 再由 h 映射到反射方向 wi：
+    // pdf_wi = pdf_h / (4 * dot(wo, h))
+    double pdfH = D * NoH;
+    double pdfWi = pdfH / (4.0 * VoH);
+
+    return pdfWi;
+}
+
+BSDFSample GGXMetal::sample(
+    const Vec3& wo,
+    const Vec3& normal
+) const {
+    BSDFSample result;
+
+    Vec3 n = normal.normalized();
+    Vec3 v = wo.normalized();
+
+    double NoV = std::max(0.0, dot(n, v));
+
+    if (NoV <= 0.0) {
+        result.valid = false;
+        return result;
+    }
+
+    double alpha = std::max(0.001, roughness * roughness);
+
+    Vec3 h = sampleGGXHalfVector(n, alpha);
+
+    if (dot(v, h) <= 0.0) {
+        result.valid = false;
+        return result;
+    }
+
+    Vec3 wi = reflect(-v, h).normalized();
+
+    double NoL = std::max(0.0, dot(n, wi));
+
+    if (NoL <= 0.0) {
+        result.valid = false;
+        return result;
+    }
+
+    Color f = eval(v, n, wi);
+    double pdf = pdfValue(v, n, wi);
+
+    if (pdf <= 1e-12) {
+        result.valid = false;
+        return result;
+    }
+
+    result.wi = wi;
+    result.f = f;
+    result.pdf = pdf;
+    result.type = BSDFSampleType::Glossy;
+    result.isDelta = false;
     result.valid = true;
 
     return result;

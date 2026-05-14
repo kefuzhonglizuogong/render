@@ -100,3 +100,31 @@ public:
         const Vec3& normal
     ) const override;
 };
+
+class GGXMetal : public Material {
+public:
+    Color albedo;
+    double roughness;
+
+    GGXMetal(
+        const Color& albedo,
+        double roughness
+    );
+
+    Color eval(
+        const Vec3& wo,
+        const Vec3& normal,
+        const Vec3& wi
+    ) const override;
+
+    double pdfValue(
+        const Vec3& wo,
+        const Vec3& normal,
+        const Vec3& wi
+    ) const override;
+
+    BSDFSample sample(
+        const Vec3& wo,
+        const Vec3& normal
+    ) const override;
+};

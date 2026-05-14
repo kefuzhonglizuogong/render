@@ -67,7 +67,6 @@ int main() {
     Lambertian smallGreenMat(Color(0.2, 0.8, 0.2));
     Lambertian smallBlueMat(Color(0.2, 0.3, 0.9));
     Lambertian smallWhiteMat(Color(0.75, 0.75, 0.75));
-    
 
     DiffuseLight lightMat(Color(12.0, 12.0, 12.0));
 
@@ -273,11 +272,23 @@ int main() {
     );*/
 
     //²£Á§Çò
-    Mirror mirrorMat(Color(0.95, 0.95, 0.95));
+    /*Mirror mirrorMat(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
         Point3(0.35, -0.20, -2.15),
         0.30,
         &mirrorMat
+    ));*/
+
+    GGXMetal roughGold(Color(1.0, 0.72, 0.25), 0.25);
+    GGXMetal roughSilver(Color(0.9, 0.9, 0.9), 0.12);
+
+    GGXMetal metalVerySmooth(Color(0.9, 0.9, 0.9), 0.05);
+    GGXMetal metalMedium(Color(0.9, 0.7, 0.3), 0.25);
+    GGXMetal metalRough(Color(0.9, 0.7, 0.3), 0.60);
+    scene.add(std::make_shared<Sphere>(
+        Point3(0.25, -0.20, -2.15),
+        0.30,
+        &metalRough
     ));
 
 
