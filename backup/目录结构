@@ -1,65 +1,75 @@
-mini_renderer/  // 项目根目录，组织整个渲染器源码与输出
-├── CMakeLists.txt  // CMake 构建脚本，定义编译目标与源文件列表
-├── include/  // 头文件目录，放接口声明与内联实现
-│   ├── core/  // 基础数学、随机数、统计等通用组件
-│   │   ├── vec3.h  // 三维向量、颜色、点的基础数学类型
-│   │   ├── ray.h  // 射线类型，表示起点与方向
-│   │   ├── random.h  // 随机采样工具，如均匀采样和余弦采样
-│   │   ├── frame.h  // 局部坐标系 Frame，用于把采样方向转到世界坐标
-│   │   ├── aabb.h  // 轴对齐包围盒 AABB 及求交测试
+mini_renderer/  // 项目根目录，组织路径追踪器源码、资源、输出与备份
+├── CMakeLists.txt  // CMake 构建脚本，定义 mini_path_tracer 可执行目标及源文件列表
+├── include/  // 头文件目录，存放各模块接口声明
+│   ├── core/  // 基础数学、随机数、统计工具
+│   │   ├── vec3.h  // Vec3 / Point3 / Color 的基础向量与颜色运算
+│   │   ├── ray.h  // Ray 射线类型，保存起点、方向和 at(t) 取点逻辑
+│   │   ├── random.h  // 全局随机采样工具，如 randomDouble、randomUnitVector 等
+│   │   ├── frame.h  // 局部坐标系 Frame，用于半球采样和方向变换
+│   │   ├── aabb.h  // AABB 包围盒定义及求交测试
 │   │   └── stats.h  // 渲染统计计数器的声明
-│   │
-│   ├── geometry/  // 场景几何体与求交接口
+│   ├── geometry/  // 几何体与求交接口
 │   │   ├── hit.h  // HitRecord 命中记录，保存交点、法线、材质等信息
 │   │   ├── hittable.h  // 可求交物体的抽象基类接口
-│   │   ├── sphere.h  // 球体几何的声明
-│   │   ├── plane.h  // 平面几何的声明
-│   │   ├── quad.h  // 矩形面片几何的声明
-│   │   ├── triangle.h  // 三角形几何的声明
-│   │   └── bvh.h  // BVH 加速结构节点的声明
-│   │
+│   │   ├── sphere.h  // Sphere 球体几何声明
+│   │   ├── plane.h  // Plane 平面几何声明
+│   │   ├── quad.h  // Quad 矩形面片几何声明
+│   │   ├── triangle.h  // Triangle 三角形几何声明
+│   │   ├── mesh.h  // Mesh 网格聚合体声明，管理三角形集合与内部 BVH
+│   │   └── bvh.h  // BVH 加速结构节点声明
 │   ├── material/  // 材质系统接口
-│   │   └── material.h  // 材质基类、Lambertian 和 DiffuseLight 的声明
-│   │
-│   ├── light/  // 显式光源采样接口
-│   │   └── light.h  // 光源基类、球光源和矩形光源的声明
-│   │
+│   │   ├── material.h  // Material 基类及 Lambertian、Mirror、GGXMetal、Dielectric、DiffuseLight 等材质
+│   │   ├── bsdf_sample.h  // BSDFSample 采样结果结构
+│   │   └── bsdf_debug.h  // BSDF 调试工具接口
+│   ├── light/  // 显式光源与环境光接口
+│   │   ├── light.h  // Light 基类、SphereLight、QuadLight 与 LightSample 定义
+│   │   ├── environment_light.h  // EnvironmentLight、ConstantEnvironmentLight、LatLongEnvironmentLight 声明
+│   │   └── environment_debug.h  // 环境光采样调试工具接口
 │   ├── render/  // 渲染流程相关接口
-│   │   ├── camera.h  // 相机声明，负责生成主光线
-│   │   ├── film.h  // 图像缓存声明，负责存像素与输出文件
-│   │   ├── renderer.h  // 渲染器声明，负责路径追踪主循环
-│   │   └── scene.h  // 场景声明，管理物体、光源和 BVH
-│   │
-│   └── image/  // 图像格式辅助工具
-│       └── image.h  // PNG 输出辅助函数
-│
-├── src/  // 源文件目录，放各模块实现
-│   ├── core/  // 基础模块实现
-│   │   └── stats.cpp  // 渲染统计计数器的定义
-│   │
-│   ├── geometry/  // 几何体与 BVH 的实现
+│   │   ├── camera.h  // Camera 相机声明，负责生成主光线
+│   │   ├── film.h  // Film 图像缓存声明，负责存像素和输出 PPM
+│   │   ├── renderer.h  // Renderer 声明，负责路径追踪主循环
+│   │   ├── scene.h  // Scene 声明，管理物体、光源、环境光、BVH 与 light selection
+│   │   ├── render_config.h  // 当前程序运行时使用的渲染配置参数
+│   │   ├── test_scenes.h  // 测试场景构建函数声明
+│   │   └── light_selection_debug.h  // Light Selection 调试工具接口，验证理论概率与实际采样比例
+│   ├── io/  // 资源加载接口
+│   │   ├── obj_loader.h  // OBJ 网格加载器声明
+│   │   └── image_loader.h  // PPM 环境图加载器声明
+│   └── image/  // 图像数据结构与辅助工具
+│       ├── image.h  // 基础图像辅助接口
+│       └── float_image.h  // FloatImage 浮点图像结构，供环境贴图等模块使用
+├── src/  // 源文件目录，存放各模块实现
+│   ├── main.cpp  // 程序入口，加载配置、构建场景、设置环境光并启动渲染
+│   ├── core/
+│   │   └── stats.cpp  // 渲染统计计数器定义
+│   ├── geometry/
 │   │   ├── sphere.cpp  // 球体求交与包围盒实现
 │   │   ├── plane.cpp  // 平面求交实现
 │   │   ├── quad.cpp  // 矩形面片求交与包围盒实现
 │   │   ├── triangle.cpp  // 三角形求交与包围盒实现
+│   │   ├── mesh.cpp  // 网格三角形添加、内部 BVH 构建与求交实现
 │   │   └── bvh.cpp  // BVH 构建与遍历求交实现
-│   │
-│   ├── material/  // 材质模块实现
-│   │   └── material.cpp  // 材质评估、采样和发光实现
-│   │
-│   ├── light/  // 光源模块实现
-│   │   └── light.cpp  // 光源采样与 pdf 计算实现
-│   │
-│   ├── render/  // 渲染流程实现
-│   │   ├── camera.cpp  // 相机参数初始化与生成射线实现
-│   │   ├── film.cpp  // 图像缓存写入与 PPM 保存实现
-│   │   ├── renderer.cpp  // 路径追踪、直接光估计和整幅图渲染实现
-│   │   └── scene.cpp  // 场景增删、BVH 构建和场景求交实现
-│   │
-│   └── main.cpp  // 程序入口，搭建场景并启动渲染
-│
-├── backup/  // 备份与结构说明目录
-│   ├── main_quadlight_scene.cpp  // 旧场景示例
-│   └── 目录结构  // 当前项目目录结构说明文档
-│
-└── output/  // 渲染输出目录，保存生成的图像文件
+│   ├── material/
+│   │   ├── material.cpp  // 各材质的 emitted / eval / sample / pdfValue 实现
+│   │   └── bsdf_debug.cpp  // BSDF 采样调试实现
+│   ├── light/
+│   │   ├── light.cpp  // SphereLight / QuadLight 的采样、pdf 与 selectionWeight 实现
+│   │   ├── environment_light.cpp  // 常量环境光与经纬环境光的评估、采样、pdf 与 selectionWeight 实现
+│   │   └── environment_debug.cpp  // 环境光采样调试实现
+│   ├── render/
+│   │   ├── camera.cpp  // 相机参数初始化与 generateRay 实现
+│   │   ├── film.cpp  // 图像缓存写入与 PPM 输出实现
+│   │   ├── renderer.cpp  // 路径追踪、直接光 MIS、俄罗斯轮盘与整幅图渲染实现
+│   │   ├── scene.cpp  // 场景增删、环境光注册、BVH 构建、sampleLight 与 lightPdfSum 实现
+│   │   ├── test_scenes.cpp  // 当前 Material Test Scene 的构建实现
+│   │   └── light_selection_debug.cpp  // 光源选择调试统计实现
+│   └── io/
+│       ├── obj_loader.cpp  // OBJ 文件解析、缩放居中、三角化与网格构建实现
+│       └── image_loader.cpp  // PPM 图像加载实现
+├── models/  // 场景资源目录，存放 bunny.obj、环境图等资源
+├── output/  // 渲染输出目录，保存生成的 ppm 图像
+├── build/ / build_codex/  // 本地构建目录，保存 CMake 和编译产物
+└── backup/  // 备份与结构说明目录
+    ├── main_quadlight_scene.cpp  // 早期多球光源/面光源测试场景备份
+    └── 目录结构  // 当前文件：记录项目目录结构及各文件作用
