@@ -21,6 +21,7 @@ add_executable(mini_path_tracer
     src/geometry/sphere.cpp
     src/light/light.cpp
     src/light/environment_light.cpp
+    src/light/environment_debug.cpp
     src/geometry/bvh.cpp
     src/core/stats.cpp
     src/io/obj_loader.cpp
@@ -48,6 +49,6 @@ add_executable(mini_path_tracer
     include/render/renderer.h
     include/render/scene.h
     include/io/obj_loader.h
- "include/material/bsdf_debug.h" "src/material/bsdf_debug.cpp" "include/light/environment_light.h" "src/light/environment_light.cpp" "include/image/float_image.h")
+ "include/material/bsdf_debug.h" "src/material/bsdf_debug.cpp" "include/light/environment_light.h" "src/light/environment_light.cpp" "include/image/float_image.h" "include/light/environment_debug.h" "src/light/environment_debug.cpp")
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

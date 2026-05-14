@@ -18,11 +18,13 @@
 #include "render/renderer.h"
 #include "light/light.h"
 #include "light/environment_light.h"
+#include "light/environment_debug.h"
 #include "core/stats.h"
 #include "core/random.h"
 #include "geometry/mesh.h"
 #include "io/obj_loader.h"
 #include "image/float_image.h"
+
 
 
 
@@ -95,9 +97,17 @@ int main() {
         }
     }
 
-    scene.setEnvironment(
-        std::make_shared<LatLongEnvironmentLight>(envImage)
-    );
+    auto envLight =
+        std::make_shared<LatLongEnvironmentLight>(
+            envImage
+        );
+
+    /*debugEnvironmentSampling(
+        *envLight,
+        100000
+    );*/
+
+    scene.setEnvironment(envLight);
 
     Lambertian whiteMat(Color(0.75, 0.75, 0.75));
     Lambertian redMat(Color(0.75, 0.15, 0.15));
@@ -558,4 +568,52 @@ Min weight:         0.899999
 Max weight:         0.9
 Avg weight:         0.9
 ===========================
+*/
+/*
+514
+LatLongEnvironmentLight distribution built.
+Resolution: 512 x 256
+Total weight: 27411.1
+
+=== Environment Sampling Debug ===
+Sample count:              100000
+Valid samples:             100000
+Invalid samples:           0
+Zero pdf samples:          0
+Bad number samples:        0
+Pdf mismatch samples:      0
+Min pdf:                   0.0116069
+Max pdf:                   3.88557
+Avg pdf:                   3.33009
+Avg sampled luminance:     13.7468
+Max sampled luminance:     16.0399
+Avg uniform luminance:     0.339608
+Max uniform luminance:     16.0399
+Sampled / Uniform avg lum: 40.4785
+==================================
+
+=== OBJ Normalize Info ===
+Original bbox min: -0.0943804, 0.0333099, -0.0616792
+Original bbox max: 0.0607788, 0.186996, 0.0587146
+Original center: -0.0168008, 0.110153, -0.00148226
+Scale factor: 4.18925
+Loaded OBJ: D:/Program/Project/mini_renderer/models/bunny.obj
+Vertices: 2503
+Vertex normals: 0
+Triangles: 4968
+Rendering line 225 / 225
+Render finished: D:/Program/Project/mini_renderer\output\render_20260514_132436.ppm
+
+=== Render Stats ===
+Render time seconds:       73.4039
+Scene intersect calls:     22049619
+BVH node intersect calls:  385471636
+AABB hit calls:            385471636
+Sphere intersect calls:    9717673
+Quad intersect calls:      2530042
+Triangle intersect calls:  40797038
+Mesh intersect calls:      9717673
+Primitive intersect calls: 53044753
+====================
+
 */
