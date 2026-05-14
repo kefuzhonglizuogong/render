@@ -4,6 +4,8 @@
 #include "core/vec3.h"
 #include "material/material.h"
 
+#include <memory>
+
 class Triangle : public Hittable {
 public:
     Point3 v0;
@@ -16,9 +18,14 @@ public:
     Vec3 n2;
     bool hasVertexNormals = false;
 
-    Material* material;
+    std::shared_ptr<Material> material;
 
-    Triangle(const Point3& v0,const Point3& v1,const Point3& v2,Material* material);
+    Triangle(
+        const Point3& v0,
+        const Point3& v1,
+        const Point3& v2,
+        const std::shared_ptr<Material>& material
+    );
 
     Triangle(
         const Point3& v0,
@@ -27,7 +34,7 @@ public:
         const Vec3& n0,
         const Vec3& n1,
         const Vec3& n2,
-        Material* material
+        const std::shared_ptr<Material>& material
     );
 
     bool intersect(const Ray& ray,double tMin, double tMax,HitRecord& rec) const override;

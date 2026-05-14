@@ -7,8 +7,8 @@
 #include <string>
 
 std::shared_ptr<Mesh> loadOBJ(
-    const std::string& filename,//OBJ 文件路径
-    Material* material,//整个模型统一使用的材质
-    double targetSize = 1.0,//模型最长边最终变成多大
-    const Point3& targetCenter = Point3(0, 0, 0)//最终模型中心放在哪里
+    const std::string& filename,//OBJ file path
+    const std::shared_ptr<Material>& material,//Shared material used by the whole mesh
+    double targetSize = 1.0,//Normalized longest side length
+    const Point3& targetCenter = Point3(0, 0, 0)//Normalized mesh center
 );

@@ -4,7 +4,12 @@
 #include <algorithm>
 #include <cmath>
 
-Triangle::Triangle(const Point3& a, const Point3& b, const Point3& c, Material* m): v0(a), v1(b), v2(c), material(m) {
+Triangle::Triangle(
+    const Point3& a,
+    const Point3& b,
+    const Point3& c,
+    const std::shared_ptr<Material>& m
+) : v0(a), v1(b), v2(c), material(m) {
     normal = cross(v1 - v0, v2 - v0).normalized();
     n0 = normal;
     n1 = normal;
@@ -18,7 +23,7 @@ Triangle::Triangle(
     const Vec3& normal0,
     const Vec3& normal1,
     const Vec3& normal2,
-    Material* m
+    const std::shared_ptr<Material>& m
 ) : v0(a), v1(b), v2(c), material(m) {
     normal = cross(v1 - v0, v2 - v0).normalized();
     n0 = normal0.normalized();

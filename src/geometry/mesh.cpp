@@ -4,7 +4,12 @@
 
 #include <iostream>
 
-void Mesh::addTriangle(const Point3& v0,const Point3& v1,const Point3& v2,Material* material) {
+void Mesh::addTriangle(
+    const Point3& v0,
+    const Point3& v1,
+    const Point3& v2,
+    const std::shared_ptr<Material>& material
+) {
     auto triangle = std::make_shared<Triangle>(
         v0,
         v1,
@@ -22,7 +27,7 @@ void Mesh::addTriangle(
     const Vec3& n0,
     const Vec3& n1,
     const Vec3& n2,
-    Material* material
+    const std::shared_ptr<Material>& material
 ) {
     auto triangle = std::make_shared<Triangle>(
         v0,

@@ -3,13 +3,19 @@
 #include "geometry/hittable.h"
 #include "material/material.h"
 
+#include <memory>
+
 class Sphere : public Hittable {
 public:
     Point3 center;
     double radius;
-    Material* material;
+    std::shared_ptr<Material> material;
 
-    Sphere(const Point3& c, double r, Material* m)
+    Sphere(
+        const Point3& c,
+        double r,
+        const std::shared_ptr<Material>& m
+    )
         : center(c), radius(r), material(m) {
     }
 

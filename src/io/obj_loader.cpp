@@ -108,7 +108,7 @@ namespace {
 
 std::shared_ptr<Mesh> loadOBJ(
     const std::string& filename,
-    Material* material,
+    const std::shared_ptr<Material>& material,
     double targetSize,
     const Point3& targetCenter
 ) {

@@ -104,7 +104,7 @@ int main() {
 
             Color sky(0.03, 0.05, 0.08);
 
-            // ÈËÔìÌ«ÑôÎ»ÖÃ
+            // äººé€ å¤ªé˜³ä½ç½®
             double sunU = 0.12;
             double sunV = 0.35;
 
@@ -117,7 +117,7 @@ int main() {
 
             Color sun(0.0, 0.0, 0.0);
 
-            // ²âÊÔ½×¶Î¹ÊÒâ·Å´óÌ«Ñô£¬È·ÈÏ»·¾³Í¼·½ÏòºÍ²ÉÑùÕı³£
+            // æµ‹è¯•é˜¶æ®µæ•…æ„æ”¾å¤§å¤ªé˜³ï¼Œç¡®è®¤ç¯å¢ƒå›¾æ–¹å‘å’Œé‡‡æ ·æ­£å¸¸
             if (dist2 < 0.0040) {
                 sun = Color(18.0, 16.0, 10.0);
             }
@@ -141,70 +141,70 @@ int main() {
     scene.setEnvironment(envLight);
     
     /*
-    Lambertian whiteMat(Color(0.75, 0.75, 0.75));
-    Lambertian redMat(Color(0.75, 0.15, 0.15));
-    Lambertian greenMat(Color(0.15, 0.75, 0.15));
-    Lambertian blueMat(Color(0.20, 0.30, 0.80));
-    Lambertian triangleMat(Color(0.1, 0.3, 0.9));
+    auto whiteMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
+    auto redMat = std::make_shared<Lambertian>(Color(0.75, 0.15, 0.15));
+    auto greenMat = std::make_shared<Lambertian>(Color(0.15, 0.75, 0.15));
+    auto blueMat = std::make_shared<Lambertian>(Color(0.20, 0.30, 0.80));
+    auto triangleMat = std::make_shared<Lambertian>(Color(0.1, 0.3, 0.9));
     
-    Lambertian meshMat(Color(0.85, 0.65, 0.25));
+    auto meshMat = std::make_shared<Lambertian>(Color(0.85, 0.65, 0.25));
 
-    //ÅúÁ¿²âÊÔ
-    Lambertian smallRedMat(Color(0.8, 0.2, 0.2));
-    Lambertian smallGreenMat(Color(0.2, 0.8, 0.2));
-    Lambertian smallBlueMat(Color(0.2, 0.3, 0.9));
-    Lambertian smallWhiteMat(Color(0.75, 0.75, 0.75));
+    //æ‰¹é‡æµ‹è¯•
+    auto smallRedMat = std::make_shared<Lambertian>(Color(0.8, 0.2, 0.2));
+    auto smallGreenMat = std::make_shared<Lambertian>(Color(0.2, 0.8, 0.2));
+    auto smallBlueMat = std::make_shared<Lambertian>(Color(0.2, 0.3, 0.9));
+    auto smallWhiteMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
 
-    DiffuseLight lightMat(Color(12.0, 12.0, 12.0));
+    auto lightMat = std::make_shared<DiffuseLight>(Color(12.0, 12.0, 12.0));
 
-    // Cornell Box ³ß´ç
-    // x: -1 µ½ 1
-    // y: -0.5 µ½ 1.5
-    // z: -1 µ½ -3
+    // Cornell Box å°ºå¯¸
+    // x: -1 åˆ° 1
+    // y: -0.5 åˆ° 1.5
+    // z: -1 åˆ° -3
     //
-    // Ïà»úÔÚÔ­µã£¬¿´Ïò -z ·½Ïò¡£
+    // ç›¸æœºåœ¨åŸç‚¹ï¼Œçœ‹å‘ -z æ–¹å‘ã€‚
 
-    // µØÃæ
+    // åœ°é¢
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, -0.5, -1.0),
         Vec3(2.0, 0.0, 0.0),
         Vec3(0.0, 0.0, -2.0),
-        &whiteMat
+        whiteMat
     ));
 
-    // Ìì»¨°å
+    // å¤©èŠ±æ¿
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, 1.5, -3.0),
         Vec3(2.0, 0.0, 0.0),
         Vec3(0.0, 0.0, 2.0),
-        &whiteMat
+        whiteMat
     ));
 
-    // ºóÇ½
+    // åå¢™
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, -0.5, -3.0),
         Vec3(2.0, 0.0, 0.0),
         Vec3(0.0, 2.0, 0.0),
-        &whiteMat
+        whiteMat
     ));
 
-    // ×óÇ½£¬ºìÉ«
+    // å·¦å¢™ï¼Œçº¢è‰²
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, -0.5, -3.0),
         Vec3(0.0, 0.0, 2.0),
         Vec3(0.0, 2.0, 0.0),
-        &redMat
+        redMat
     ));
 
-    // ÓÒÇ½£¬ÂÌÉ«
+    // å³å¢™ï¼Œç»¿è‰²
     scene.add(std::make_shared<Quad>(
         Point3(1.0, -0.5, -1.0),
         Vec3(0.0, 0.0, -2.0),
         Vec3(0.0, 2.0, 0.0),
-        &greenMat
+        greenMat
     ));
 
-    // ¶¥²¿¾ØĞÎÃæ¹âÔ´
+    // é¡¶éƒ¨çŸ©å½¢é¢å…‰æº
     Point3 lightCorner(-0.35, 1.49, -2.35);
     Vec3 lightU(0.70, 0.0, 0.0);
     Vec3 lightV(0.0, 0.0, 0.70);
@@ -214,7 +214,7 @@ int main() {
         lightCorner,
         lightU,
         lightV,
-        &lightMat
+        lightMat
     ));
 
     scene.addLight(std::make_shared<QuadLight>(
@@ -224,29 +224,29 @@ int main() {
         lightEmission
     ));
 */
-    // ºĞ×ÓÖĞµÄºìÇò
+    // ç›’å­ä¸­çš„çº¢çƒ
     /*scene.add(std::make_shared<Sphere>(
         Point3(-0.35, -0.15, -1.85),
         0.35,
-        &redMat
+        redMat
     ));*/
 
-    // ºĞ×ÓÖĞµÄÀ¶Çò
+    // ç›’å­ä¸­çš„è“çƒ
     /*scene.add(std::make_shared<Sphere>(
         Point3(0.35, -0.25, -2.35),
         0.25,
-        &blueMat
+        blueMat
     ));*/
 
-    //ºĞ×ÓÖĞµÄÀ¶É«Èı½ÇĞÎ
+    //ç›’å­ä¸­çš„è“è‰²ä¸‰è§’å½¢
     /*scene.add(std::make_shared<Triangle>(
         Point3(0.15, -0.45, -2.55),
         Point3(0.85, -0.45, -2.55),
         Point3(0.50, 0.35, -2.55),
-        &triangleMat
+        triangleMat
     ));*/
 
-    //ÅúÁ¿Éú³ÉĞ¡Çò
+    //æ‰¹é‡ç”Ÿæˆå°çƒ
     /*const int sphereCountX = 10;
     const int sphereCountZ = 8;
 
@@ -266,20 +266,20 @@ int main() {
                 z + jitterZ
             );
 
-            Material* mat = &smallWhiteMat;
+            std::shared_ptr<Material> mat = smallWhiteMat;
 
             int choice = (ix + iz) % 4;
             if (choice == 0) {
-                mat = &smallRedMat;
+                mat = smallRedMat;
             }
             else if (choice == 1) {
-                mat = &smallGreenMat;
+                mat = smallGreenMat;
             }
             else if (choice == 2) {
-                mat = &smallBlueMat;
+                mat = smallBlueMat;
             }
             else {
-                mat = &smallWhiteMat;
+                mat = smallWhiteMat;
             }
 
             scene.add(std::make_shared<Sphere>(
@@ -290,11 +290,11 @@ int main() {
         }
     }*/
 
-    //ÅúÁ¿Éú³ÉÈı½ÇĞÎ
+    //æ‰¹é‡ç”Ÿæˆä¸‰è§’å½¢
     /*const int triCountX = 20;
     const int triCountY = 10;
 
-    Lambertian triMat(Color(0.2, 0.6, 0.9));
+    auto triMat = std::make_shared<Lambertian>(Color(0.2, 0.6, 0.9));
 
     for (int ix = 0; ix < triCountX; ++ix) {
         for (int iy = 0; iy < triCountY; ++iy) {
@@ -306,7 +306,7 @@ int main() {
                 Point3(x0, y0, z),
                 Point3(x0 + 0.06, y0, z),
                 Point3(x0 + 0.03, y0 + 0.07, z),
-                &triMat
+                triMat
             ));
         }
     }*/
@@ -319,35 +319,35 @@ int main() {
     Point3 p3(-0.35, -0.50, -2.85);
     Point3 top(0.0, 0.25, -2.50);
 
-    // µ×Ãæ£¬Á½¸öÈı½ÇĞÎ
-    pyramid->addTriangle(p0, p1, p2, &meshMat);
-    pyramid->addTriangle(p0, p2, p3, &meshMat);
+    // åº•é¢ï¼Œä¸¤ä¸ªä¸‰è§’å½¢
+    pyramid->addTriangle(p0, p1, p2, meshMat);
+    pyramid->addTriangle(p0, p2, p3, meshMat);
 
-    // ËÄ¸ö²àÃæ
-    pyramid->addTriangle(p0, p1, top, &meshMat);
-    pyramid->addTriangle(p1, p2, top, &meshMat);
-    pyramid->addTriangle(p2, p3, top, &meshMat);
-    pyramid->addTriangle(p3, p0, top, &meshMat);
+    // å››ä¸ªä¾§é¢
+    pyramid->addTriangle(p0, p1, top, meshMat);
+    pyramid->addTriangle(p1, p2, top, meshMat);
+    pyramid->addTriangle(p2, p3, top, meshMat);
+    pyramid->addTriangle(p3, p0, top, meshMat);
 
     pyramid->buildBVH();
 
     scene.add(pyramid);*/
 
-    //Lambertian meshMat(Color(0.85, 0.65, 0.25));
+    //auto meshMat = std::make_shared<Lambertian>(Color(0.85, 0.65, 0.25));
 
     /*auto objMesh = loadOBJ(
         "D:/Program/Project/mini_renderer/models/simple_pyramid.obj",
-        &meshMat
+        meshMat
     );
 
     scene.add(objMesh);*/
 
-    //ÍÃ×Ó
-    /*Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
+    //å…”å­
+    /*auto bunnyMat = std::make_shared<Lambertian>(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
         config.objPath,
-        &bunnyMat,
+        bunnyMat,
         config.meshTargetSize,
         Point3(
             config.meshCenterX,
@@ -357,23 +357,23 @@ int main() {
     );
     scene.add(bunny);
 
-    //GGXMetalÇò
-    Mirror mirrorMat(Color(0.95, 0.95, 0.95));
+    //GGXMetalçƒ
+    auto mirrorMat = std::make_shared<Mirror>(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
         Point3(0.65, -0.20, -2.15),
         0.30,
-        &mirrorMat
+        mirrorMat
     ));
 
-    //²£Á§Çò
-    Dielectric glass(
+    //ç»ç’ƒçƒ
+    auto glass = std::make_shared<Dielectric>(
         Color(1.0, 1.0, 1.0),
         1.5
     );
     scene.add(std::make_shared<Sphere>(
         Point3(0.05, -0.20, -2.15),
         0.30,
-        &glass
+        glass
     ));
     */
 
@@ -382,11 +382,11 @@ int main() {
 
     GGXMetal metalVerySmooth(Color(0.9, 0.9, 0.9), 0.05);
     GGXMetal metalMedium(Color(0.9, 0.7, 0.3), 0.25);
-    GGXMetal metalRough(Color(0.9, 0.7, 0.3), 0.60);
+    auto metalRough = std::make_shared<GGXMetal>(Color(0.9, 0.7, 0.3), 0.60);
     scene.add(std::make_shared<Sphere>(
         Point3(0.25, -0.20, -2.15),
         0.30,
-        &metalRough
+        metalRough
     ));*/
 
     /*GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
@@ -401,7 +401,7 @@ int main() {
 
     buildMaterialTestScene(scene);
 
-    // ËùÓĞÎïÌåÌí¼ÓÍê³Éºó¹¹½¨ BVH
+    // æ‰€æœ‰ç‰©ä½“æ·»åŠ å®Œæˆåæ„å»º BVH
     if (config.enableBVH) {
         scene.buildBVH();
     }
@@ -453,8 +453,8 @@ int main() {
 }
 
 /*
-* ÏÖÔÚµÄ³¡¾°Àï£¬ÓĞ 6 ¸ö Quad£¨×é³ÉÁË Cornell Box µÄµØ°å¡¢Ìì»¨°åºÍËÄÃæÇ½£©£¬1 ¸ö Sphere£¨Çò£©£¬1 ¸ö Triangle£¨Èı½ÇĞÎ£©¡£
-****************** ¹Ø±Õ BVH ******************
+* ç°åœ¨çš„åœºæ™¯é‡Œï¼Œæœ‰ 6 ä¸ª Quadï¼ˆç»„æˆäº† Cornell Box çš„åœ°æ¿ã€å¤©èŠ±æ¿å’Œå››é¢å¢™ï¼‰ï¼Œ1 ä¸ª Sphereï¼ˆçƒï¼‰ï¼Œ1 ä¸ª Triangleï¼ˆä¸‰è§’å½¢ï¼‰ã€‚
+****************** å…³é—­ BVH ******************
 Rendering line 225 / 225
 Render finished: D:/Program/Project/mini_renderer\output\render_20260503_183412.ppm
 
@@ -468,7 +468,7 @@ Triangle intersect calls:  52159438
 Primitive intersect calls: 417275504
 ====================
 
-****************** ¿ªÆô BVH ******************
+****************** å¼€å¯ BVH ******************
 Rendering line 225 / 225
 Render finished: D:/Program/Project/mini_renderer\output\render_20260503_183726.ppm
 
@@ -481,19 +481,19 @@ Quad intersect calls:      217500773
 Triangle intersect calls:  24626507
 Primitive intersect calls: 267982214
 ====================
-ºËĞÄ¶´²ì£ºÎªÊ²Ã´´ó¸ÅÂÊäÖÈ¾Ê±¼äÃ»±ä¿ì£¨ÉõÖÁ±äÂıÁË£©£¿
-ËäÈ»³É¹¦Ìø¹ıÁË 1.5 ÒÚ´ÎÍ¼Ôª¼ÆËã£¬µ«Äã¸¶³öÁËÒ»±Ê¼«Æä¸ß°ºµÄ¹ıÂ··Ñ£º
+æ ¸å¿ƒæ´å¯Ÿï¼šä¸ºä»€ä¹ˆå¤§æ¦‚ç‡æ¸²æŸ“æ—¶é—´æ²¡å˜å¿«ï¼ˆç”šè‡³å˜æ…¢äº†ï¼‰ï¼Ÿ
+è™½ç„¶æˆåŠŸè·³è¿‡äº† 1.5 äº¿æ¬¡å›¾å…ƒè®¡ç®—ï¼Œä½†ä½ ä»˜å‡ºäº†ä¸€ç¬”æå…¶é«˜æ˜‚çš„è¿‡è·¯è´¹ï¼š
 
-ĞÂÔö¿ªÏú£º ¶à³öÁË 2.96 ÒÚ´Î AABB hit calls£¨°²¼ìÃÅ²âÊÔ£©£¡
+æ–°å¢å¼€é”€ï¼š å¤šå‡ºäº† 2.96 äº¿æ¬¡ AABB hit callsï¼ˆå®‰æ£€é—¨æµ‹è¯•ï¼‰ï¼
 
-Õâ¾ÍÊÇ¾­µäã£ÂÛ£º
-µ±³¡¾°ÀïÖ»ÓĞ 8 ¸öÎïÌåÊ±£¬Ö±½Ó±©Á¦Ñ­»·Ëã 8 ´ÎÊıÑ§·½³ÌµÄ´ú¼Û£¬ÆäÊµÔ¶Ô¶Ğ¡ÓÚÈ¥±éÀúÒ»¿Ã BVH Ê÷¡¢·ÃÎÊ¶ÑÄÚ´æÖ¸Õë¡¢ÒÔ¼°Ëã¼¸Ê®´Î AABB ³¤·½ÌåÇó½»µÄ´ú¼Û¡£
-Õâ¾ÍºÃ±È£¬ÄãÎªÁË¹ÜÀí×À×ÓÉÏµÄ 8 Ö§±Ê£¬×¨ÃÅÂòÁËÒ»¸ö´øË÷ÒıÄ¿Â¼µÄ´óĞÍµµ°¸¹ñ¡£Ã¿´ÎÕÒ±Ê¶¼ÒªÏÈ²éÄ¿Â¼¡¢¿ª¹ñ×Ó£¬·´¶ø²»ÈçÖ±½ÓÔÚ×À×ÓÉÏÉ¨Ò»ÑÛÀ´µÃ¿ì¡£
+è¿™å°±æ˜¯ç»å…¸æ‚–è®ºï¼š
+å½“åœºæ™¯é‡Œåªæœ‰ 8 ä¸ªç‰©ä½“æ—¶ï¼Œç›´æ¥æš´åŠ›å¾ªç¯ç®— 8 æ¬¡æ•°å­¦æ–¹ç¨‹çš„ä»£ä»·ï¼Œå…¶å®è¿œè¿œå°äºå»éå†ä¸€æ£µ BVH æ ‘ã€è®¿é—®å †å†…å­˜æŒ‡é’ˆã€ä»¥åŠç®—å‡ åæ¬¡ AABB é•¿æ–¹ä½“æ±‚äº¤çš„ä»£ä»·ã€‚
+è¿™å°±å¥½æ¯”ï¼Œä½ ä¸ºäº†ç®¡ç†æ¡Œå­ä¸Šçš„ 8 æ”¯ç¬”ï¼Œä¸“é—¨ä¹°äº†ä¸€ä¸ªå¸¦ç´¢å¼•ç›®å½•çš„å¤§å‹æ¡£æ¡ˆæŸœã€‚æ¯æ¬¡æ‰¾ç¬”éƒ½è¦å…ˆæŸ¥ç›®å½•ã€å¼€æŸœå­ï¼Œåè€Œä¸å¦‚ç›´æ¥åœ¨æ¡Œå­ä¸Šæ‰«ä¸€çœ¼æ¥å¾—å¿«ã€‚
 */
 
 /*
-´óÁ¿Ğ¡Çò(80¸ö)
-****************** ¹Ø±Õ BVH ******************
+å¤§é‡å°çƒ(80ä¸ª)
+****************** å…³é—­ BVH ******************
 Rendering line 168 / 168
 === Render Stats ===
 Render time seconds:       14.6906
@@ -506,7 +506,7 @@ Triangle intersect calls:  2887035
 Primitive intersect calls: 254059080
 ====================
 
-****************** ¿ªÆô BVH ******************
+****************** å¼€å¯ BVH ******************
 * Rendering line 168 / 168
 === Render Stats ===
 Render time seconds:       10.7481
@@ -521,8 +521,8 @@ Primitive intersect calls: 14353778
 */
 
 /*
-* 200¸öÈı½ÇĞÎ
-****************** ¹Ø±Õ BVH ******************
+* 200ä¸ªä¸‰è§’å½¢
+****************** å…³é—­ BVH ******************
 === Render Stats ===
 Render time seconds:       44.8837
 Scene intersect calls:     2905762
@@ -534,7 +534,7 @@ Triangle intersect calls:  584058162
 Primitive intersect calls: 604398496
 ====================
 
-****************** ¿ªÆô BVH ******************
+****************** å¼€å¯ BVH ******************
 * === Render Stats ===
 Render time seconds:       11.9847
 Scene intersect calls:     2906880
@@ -598,7 +598,7 @@ Primitive intersect calls: 1268699586
 ====================
 */
 
-/*BSDF µ÷ÊÔ½á¹û£¨GGX ²ÉÑù£©
+/*BSDF è°ƒè¯•ç»“æœï¼ˆGGX é‡‡æ ·ï¼‰
 === BSDF Sampling Debug ===   GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.25);
 Sample count:       100000
 Valid samples:      99597

@@ -4,7 +4,12 @@
 #include <algorithm>
 #include "core/stats.h"
 
-Quad::Quad(const Point3& c, const Vec3& u, const Vec3& v, Material* m) : corner(c), edgeU(u), edgeV(v), material(m) {
+Quad::Quad(
+    const Point3& c,
+    const Vec3& u,
+    const Vec3& v,
+    const std::shared_ptr<Material>& m
+) : corner(c), edgeU(u), edgeV(v), material(m) {
     normal = cross(edgeU, edgeV).normalized();
 }
 

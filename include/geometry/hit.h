@@ -3,6 +3,8 @@
 #include "core/vec3.h"
 #include "core/ray.h"
 
+#include <memory>
+
 class Material;
 
 struct HitRecord {
@@ -11,14 +13,14 @@ struct HitRecord {
     Vec3 shadingNormal;
     double t;
     bool frontFace;
-    Material* material;
+    std::shared_ptr<Material> material;
 
     HitRecord()
         : p(), geometricNormal(), shadingNormal(), t(0.0), frontFace(true), material(nullptr) {
     }
 
     void setFaceNormal(const Ray& ray, const Vec3& outwardNormal) {
-        frontFace = dot(ray.direction, outwardNormal) < 0.0;//如果点积小于 0，说明：射线方向和外法线方向夹角大于 90°射线是从物体外面打进来的
+        frontFace = dot(ray.direction, outwardNormal) < 0.0;//濡傛灉鐐圭Н灏忎簬 0锛岃鏄庯細灏勭嚎鏂瑰悜鍜屽娉曠嚎鏂瑰悜澶硅澶т簬 90掳灏勭嚎鏄粠鐗╀綋澶栭潰鎵撹繘鏉ョ殑
         geometricNormal = frontFace ? outwardNormal : -outwardNormal;
     }
 };

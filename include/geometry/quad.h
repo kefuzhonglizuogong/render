@@ -4,25 +4,27 @@
 #include "core/vec3.h"
 #include "material/material.h"
 
+#include <memory>
+
 class Quad : public Hittable {
 public:
 
     /*
-    corner£º¾ØĞÎµÄÒ»¸ö½Çµã
-    edgeU £º´Ó corner ³ö·¢µÄÒ»Ìõ±ß
-    edgeV £º´Ó corner ³ö·¢µÄÁíÒ»Ìõ±ß
+    cornerï¼šçŸ©å½¢çš„ä¸€ä¸ªè§’ç‚¹
+    edgeU ï¼šä» corner å‡ºå‘çš„ä¸€æ¡è¾¹
+    edgeV ï¼šä» corner å‡ºå‘çš„å¦ä¸€æ¡è¾¹
     */
     Point3 corner;
     Vec3 edgeU;
     Vec3 edgeV;
     Vec3 normal;
-    Material* material;
+    std::shared_ptr<Material> material;
 
     Quad(
         const Point3& corner,
         const Vec3& edgeU,
         const Vec3& edgeV,
-        Material* material
+        const std::shared_ptr<Material>& material
     );
 
     bool intersect(const Ray& ray,double tMin,double tMax,HitRecord& rec) const override;
