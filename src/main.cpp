@@ -15,6 +15,7 @@
 #include "material/bsdf_debug.h"
 #include "render/camera.h"
 #include "render/film.h"
+#include "render/light_selection_debug.h"
 #include "render/renderer.h"
 #include "render/render_config.h"
 #include "render/test_scenes.h"
@@ -400,6 +401,8 @@ int main() {
 
 
     buildMaterialTestScene(scene);
+
+    // debugLightSelection(scene, 100000);
 
     // 所有物体添加完成后构建 BVH
     if (config.enableBVH) {

@@ -4,19 +4,9 @@
 #include "light/light.h"
 #include "material/bsdf_sample.h"
 
-#include <iostream>
 #include <algorithm>
 #include <cmath>
-
-
-/*
-powerHeuristic()          计算 MIS 权重
-isBlack()                 判断颜色是否接近黑色
-lightPdfSum()             计算某个方向被光源采样到的概率
-estimateDirectLightMIS()  用 Light sampling 估计直接光
-trace()                   追踪整条路径
-render()                  遍历像素，多次采样，输出图像
-*/
+#include <iostream>
 
 namespace {
     double powerHeuristic(double pdfA, double pdfB) {
@@ -34,36 +24,6 @@ namespace {
         return maxComponent(c) <= 1e-12;
     }
 
-    int randomLightIndex(int lightCount) {
-        int index = static_cast<int>(randomDouble() * lightCount);
-
-        if (index < 0) {
-            index = 0;
-        }
-
-        if (index >= lightCount) {
-            index = lightCount - 1;
-        }
-
-        return index;
-    }
-
-    double lightPdfSum(const Scene& scene,const Point3& refPoint,const Vec3& wi) {
-        if (scene.lights.empty()) {
-            return 0.0;
-        }
-
-        double pdf = 0.0;
-        double selectPdf = 1.0 / static_cast<double>(scene.lights.size());
-
-        for (const auto& light : scene.lights) {
-            pdf += selectPdf * light->pdf(refPoint, wi);
-        }
-
-        return pdf;
-    }
-
-    //在当前交点 rec.p，随机选择一个光源，在这个光源上采样一个点，发 shadow ray 判断是否可见，如果可见，就计算直接光贡献，并乘上 MIS 权重。
     Color estimateDirectLightMIS(
         const HitRecord& rec,
         const Vec3& wo,
@@ -77,14 +37,18 @@ namespace {
             return Color(0.0, 0.0, 0.0);
         }
 
-        int lightCount = static_cast<int>(scene.lights.size());
-        int lightIndex = randomLightIndex(lightCount);
+        LightSelectionSample lightSelection =
+            scene.sampleLight();
 
-        const auto& light = scene.lights[lightIndex];
+        if (!lightSelection.valid || !lightSelection.light) {
+            return Color(0.0, 0.0, 0.0);
+        }
 
-        double selectPdf = 1.0 / static_cast<double>(lightCount);
+        const auto& light = lightSelection.light;
+        double lightSelectionPdf =
+            lightSelection.selectionPdf;
 
-        LightSample lightSample;//在已经选中这个光源之后，这个光源内部自己的采样方法，采到方向 wi 的概率密度。
+        LightSample lightSample;
 
         if (!light->sample(rec.p, lightSample)) {
             return Color(0.0, 0.0, 0.0);
@@ -101,8 +65,8 @@ namespace {
             return Color(0.0, 0.0, 0.0);
         }
 
-        //“按照整个光源采样策略，最终采到当前方向 wi 的总概率密度。”
-        double pdfLight = selectPdf * lightSample.pdf;
+        double pdfLight =
+            lightSelectionPdf * lightSample.pdf;
 
         if (pdfLight <= 1e-12) {
             return Color(0.0, 0.0, 0.0);
@@ -110,24 +74,27 @@ namespace {
 
         Ray shadowRay(rec.p + rec.geometricNormal * 1e-4, wi);
 
-        double shadowTMax =lightSample.isInfinite ?1e30 :lightSample.distance - 1e-4;
+        double shadowTMax =
+            lightSample.isInfinite ? 1e30 : lightSample.distance - 1e-4;
 
         HitRecord shadowRec;
-        if (scene.intersect(shadowRay,1e-4,shadowTMax,shadowRec)) {
+        if (scene.intersect(shadowRay, 1e-4, shadowTMax, shadowRec)) {
             return Color(0.0, 0.0, 0.0);
         }
 
-        Color f = rec.material->eval(wo,rec.shadingNormal,wi);
+        Color f = rec.material->eval(wo, rec.shadingNormal, wi);
 
         if (isBlack(f)) {
             return Color(0.0, 0.0, 0.0);
         }
 
-        double pdfBsdf = rec.material->pdfValue(wo,rec.shadingNormal, wi);
+        double pdfBsdf =
+            rec.material->pdfValue(wo, rec.shadingNormal, wi);
 
-        double misWeight = powerHeuristic(pdfLight,pdfBsdf);
+        double misWeight =
+            powerHeuristic(pdfLight, pdfBsdf);
 
-        return f* lightSample.emission* (cosSurface / pdfLight)* misWeight;
+        return f * lightSample.emission * (cosSurface / pdfLight) * misWeight;
     }
 }
 
@@ -141,12 +108,11 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
     Ray ray = rayIn;
 
-    bool previousWasBsdfSample = false;// 上一次是按材质方向反弹的
-    double previousBsdfPdf = 0.0;// 上一次反弹的概率
+    bool previousWasBsdfSample = false;
+    double previousBsdfPdf = 0.0;
     Point3 previousPoint;
     Vec3 previousWi;
     bool previousWasDelta = false;
-
 
     for (int bounce = 0; bounce < depth; ++bounce) {
         HitRecord rec;
@@ -159,32 +125,32 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     scene.environment->eval(unitDir);
 
                 if (bounce == 0) {
-                    // 相机直接看到环境
                     L += beta * envRadiance;
                 }
                 else if (previousWasDelta) {
-                    // delta BSDF（例如 Mirror）打到环境
-                    // 不和 light sampling 竞争，MIS 权重视为 1
                     L += beta * envRadiance;
                 }
                 else if (previousWasBsdfSample) {
-                    // 普通 BSDF 采样打到环境
-                    // 需要和 environment light sampling 做 MIS
-                    double pdfLight = lightPdfSum(scene,previousPoint,previousWi);
+                    double pdfLight = scene.lightPdfSum(
+                        previousPoint,
+                        previousWi
+                    );
 
-                    double misWeight =powerHeuristic(previousBsdfPdf,pdfLight);
+                    double misWeight =
+                        powerHeuristic(previousBsdfPdf, pdfLight);
 
                     L += beta * envRadiance * misWeight;
                 }
                 else {
-                    // 理论上一般不会到这里，但保底
                     L += beta * envRadiance;
                 }
             }
             else {
                 double t = 0.5 * (unitDir.y + 1.0);
 
-                Color background =(1.0 - t) * Color(1.0, 1.0, 1.0) +t * Color(0.5, 0.7, 1.0);
+                Color background =
+                    (1.0 - t) * Color(1.0, 1.0, 1.0) +
+                    t * Color(0.5, 0.7, 1.0);
 
                 L += beta * background;
             }
@@ -203,18 +169,16 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 L += beta * emitted;
             }
             else if (previousWasDelta) {
-                // delta 路径没有 competing light sampling pdf，
-                // MIS 权重视为 1。
                 L += beta * emitted;
             }
             else if (previousWasBsdfSample) {
-                double pdfLight = lightPdfSum(
-                    scene,
+                double pdfLight = scene.lightPdfSum(
                     previousPoint,
                     previousWi
                 );
 
-                double misWeight = powerHeuristic(previousBsdfPdf,pdfLight);
+                double misWeight =
+                    powerHeuristic(previousBsdfPdf, pdfLight);
 
                 L += beta * emitted * misWeight;
             }
@@ -224,18 +188,12 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         Vec3 wo = (-ray.direction).normalized();
 
-        Color directLight = estimateDirectLightMIS(rec,wo,scene);
+        Color directLight = estimateDirectLightMIS(rec, wo, scene);
 
         L += beta * directLight;
 
-        BSDFSample bsdfSample = rec.material->sample(wo,rec.shadingNormal);
-        /*bsdfSample里面包含
-            wi：下一条光线反射方向
-            f：反射率 / 颜色
-            pdf：这个方向的概率
-            isDelta：是不是镜面 / 玻璃（只有一个方向）
-            valid：是否有效
-        */
+        BSDFSample bsdfSample =
+            rec.material->sample(wo, rec.shadingNormal);
 
         if (!bsdfSample.valid || bsdfSample.pdf <= 1e-12) {
             break;

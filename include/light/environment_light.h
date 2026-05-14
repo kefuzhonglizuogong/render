@@ -23,6 +23,8 @@ public:
     bool sample(const Point3& refPoint,LightSample& sample) const override;
 
     double pdf(const Point3& refPoint,const Vec3& wi) const override;
+
+    double selectionWeight() const override;
 };
 
 class LatLongEnvironmentLight : public EnvironmentLight {
@@ -42,6 +44,8 @@ public:
     bool sample(const Point3& refPoint,LightSample& sample) const override;
 
     double pdf(const Point3& refPoint,const Vec3& wi) const override;
+
+    double selectionWeight() const override;
 
 private:
     void buildDistribution();

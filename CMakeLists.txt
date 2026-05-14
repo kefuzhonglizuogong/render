@@ -11,6 +11,7 @@ add_executable(mini_path_tracer
     src/main.cpp
     src/render/camera.cpp
     src/render/film.cpp
+    src/render/light_selection_debug.cpp
     src/render/renderer.cpp
     src/render/scene.cpp
     src/render/test_scenes.cpp

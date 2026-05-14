@@ -105,6 +105,10 @@ double ConstantEnvironmentLight::pdf(const Point3& refPoint,const Vec3& wi) cons
     return 1.0 / (4.0 * PI);
 }
 
+double ConstantEnvironmentLight::selectionWeight() const {
+    return 4.0 * PI * std::max(0.0, luminance(radiance));
+}
+
 // =====================================================
 // LatLongEnvironmentLight
 // =====================================================
@@ -340,4 +344,12 @@ double LatLongEnvironmentLight::pdf(const Point3& refPoint,const Vec3& wi) const
     }
 
     return texelPdfSolidAngle(x, y);
+}
+
+double LatLongEnvironmentLight::selectionWeight() const {
+    if (totalWeight > 0.0) {
+        return totalWeight;
+    }
+
+    return 1.0;
 }

@@ -26,6 +26,10 @@ public:
         const Point3& refPoint,
         const Vec3& wi
     ) const = 0;
+
+    virtual double selectionWeight() const {
+        return 1.0;
+    }
 };
 
 class SphereLight : public Light {
@@ -49,6 +53,8 @@ public:
         const Point3& refPoint,
         const Vec3& wi
     ) const override;
+
+    double selectionWeight() const override;
 };
 
 class QuadLight : public Light {
@@ -76,6 +82,8 @@ public:
         const Point3& refPoint,
         const Vec3& wi
     ) const override;
+
+    double selectionWeight() const override;
 
 private:
     bool isInside(double a, double b) const;

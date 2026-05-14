@@ -7,6 +7,10 @@
 
 namespace {
     constexpr double PI = 3.14159265358979323846;
+
+    double luminance(const Color& c) {
+        return 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+    }
 }
 
 SphereLight::SphereLight(
@@ -17,7 +21,7 @@ SphereLight::SphereLight(
     : center(c), radius(r), emit(e) {
 }
 
-//在球光源表面采样一个点，并返回方向 pdf
+//鍦ㄧ悆鍏夋簮琛ㄩ潰閲囨牱涓�涓偣锛屽苟杩斿洖鏂瑰悜 pdf
 bool SphereLight::sample(const Point3& refPoint, LightSample& sample) const {
     Vec3 localNormal = randomUnitVector();
 
@@ -59,7 +63,7 @@ bool SphereLight::sample(const Point3& refPoint, LightSample& sample) const {
     return true;
 }
 
-//给定一个方向，计算这个方向在球光源采样策略下的 pdf
+//缁欏畾涓�涓柟鍚戯紝璁＄畻杩欎釜鏂瑰悜鍦ㄧ悆鍏夋簮閲囨牱绛栫暐涓嬬殑 pdf
 double SphereLight::pdf(const Point3& refPoint,const Vec3& wi) const {
     Ray ray(refPoint, wi.normalized());
 
@@ -100,6 +104,11 @@ double SphereLight::pdf(const Point3& refPoint,const Vec3& wi) const {
     double pdfArea = 1.0 / area;
 
     return pdfArea * distanceSquared / cosLight;
+}
+
+double SphereLight::selectionWeight() const {
+    double area = 4.0 * PI * radius * radius;
+    return std::max(0.0, luminance(emit)) * area;
 }
 
 QuadLight::QuadLight(
@@ -219,4 +228,9 @@ double QuadLight::pdf(const Point3& refPoint,const Vec3& wi) const {
 
     double pdfArea = 1.0 / area;
     return pdfArea * distanceSquared / cosLight;
+}
+
+double QuadLight::selectionWeight() const {
+    return std::max(0.0, luminance(emit)) *
+        std::max(0.0, area);
 }
