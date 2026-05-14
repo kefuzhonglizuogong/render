@@ -22,6 +22,7 @@
 #include "core/random.h"
 #include "geometry/mesh.h"
 #include "io/obj_loader.h"
+#include "image/float_image.h"
 
 
 
@@ -56,10 +57,46 @@ int main() {
 
     Scene scene;
 
-    scene.setEnvironment(
+    /*scene.setEnvironment(
         std::make_shared<ConstantEnvironmentLight>(
             Color(0.03, 0.04, 0.06)
         )
+    );*/
+
+    FloatImage envImage(512, 256);
+
+    for (int y = 0; y < envImage.height; ++y) {
+        for (int x = 0; x < envImage.width; ++x) {
+            double u =(static_cast<double>(x) + 0.5) /static_cast<double>(envImage.width);
+
+            double v =(static_cast<double>(y) + 0.5) /static_cast<double>(envImage.height);
+
+            Color sky(0.03, 0.05, 0.08);
+
+            // 人造太阳位置
+            double sunU = 0.12;
+            double sunV = 0.35;
+
+            double du = std::abs(u - sunU);
+            du = std::min(du, 1.0 - du);
+
+            double dv = v - sunV;
+
+            double dist2 = du * du + dv * dv;
+
+            Color sun(0.0, 0.0, 0.0);
+
+            // 测试阶段故意放大太阳，确认环境图方向和采样正常
+            if (dist2 < 0.0040) {
+                sun = Color(18.0, 16.0, 10.0);
+            }
+
+            envImage.setPixel(x,y,sky + sun);
+        }
+    }
+
+    scene.setEnvironment(
+        std::make_shared<LatLongEnvironmentLight>(envImage)
     );
 
     Lambertian whiteMat(Color(0.75, 0.75, 0.75));
@@ -92,7 +129,7 @@ int main() {
         Vec3(0.0, 0.0, -2.0),
         &whiteMat
     ));
-
+/*
     // 天花板
     scene.add(std::make_shared<Quad>(
         Point3(-1.0, 1.5, -3.0),
@@ -144,7 +181,7 @@ int main() {
         lightV,
         lightEmission
     ));
-
+*/
     // 盒子中的红球
     /*scene.add(std::make_shared<Sphere>(
         Point3(-0.35, -0.15, -1.85),
@@ -264,7 +301,7 @@ int main() {
     scene.add(objMesh);*/
 
     //兔子
-    /*Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
+    Lambertian bunnyMat(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
         "D:/Program/Project/mini_renderer/models/bunny.obj",
@@ -274,15 +311,14 @@ int main() {
         0.65,
 
         // 放到 Cornell Box 中间
-        Point3(0.0, 0.0, -1.0)
-    
-        scene.add(bunny);
-    );*/
+        Point3(-0.3, 0.0, -1.0)
+    );
+    scene.add(bunny);
 
     //玻璃球
     Mirror mirrorMat(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
-        Point3(0.15, -0.10, -2.15),
+        Point3(0.65, -0.20, -2.15),
         0.30,
         &mirrorMat
     ));
