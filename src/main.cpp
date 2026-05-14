@@ -23,6 +23,7 @@
 #include "core/random.h"
 #include "geometry/mesh.h"
 #include "io/obj_loader.h"
+#include "io/image_loader.h"
 #include "image/float_image.h"
 
 
@@ -65,7 +66,7 @@ int main() {
         )
     );*/
 
-    FloatImage envImage(512, 256);
+    /*FloatImage envImage(512, 256);
 
     for (int y = 0; y < envImage.height; ++y) {
         for (int x = 0; x < envImage.width; ++x) {
@@ -96,6 +97,11 @@ int main() {
             envImage.setPixel(x,y,sky + sun);
         }
     }
+    */
+    FloatImage envImage = loadPPMImage(
+        "D:/Program/Project/mini_renderer/models/test_env.ppm",
+        8.0
+    );
 
     auto envLight =
         std::make_shared<LatLongEnvironmentLight>(
