@@ -1,0 +1,683 @@
+/*
+===============================================================================
+renderer.cpp 核心逻辑总结
+===============================================================================
+
+本文件实现的是路径追踪器的核心 trace() 流程。
+
+当前 renderer 的核心思想：
+
+1. 用 ray 表示当前正在追踪的射线。
+2. 用 L 累计最终返回给像素的 radiance。
+3. 用 beta 表示路径 throughput，也就是当前路径还剩多少权重。
+4. 每个 bounce 先和场景求交：
+   - 如果没命中，说明看到了 environment / sky。
+   - 如果命中 emitter，说明直接打到了光源。
+   - 如果命中普通表面，先做 NEE，再做 BSDF 采样继续反弹。
+5. 用 MIS 平衡两种采样策略：
+   - light sampling / NEE
+   - BSDF sampling
+6. 用 previous* 变量记录上一跳 BSDF 采样信息，
+   这样当下一跳打到 emitter 或 environment 时，可以正确计算 MIS 权重。
+
+===============================================================================
+一、核心变量说明
+===============================================================================
+
+Color L
+-------------------------------------------------------------------------------
+最终累计的 radiance。
+
+它是真正返回给像素的颜色/亮度结果。
+
+L 的主要来源：
+1. 相机主射线直接看到 environment。
+2. 相机主射线直接看到 emitter。
+3. 普通表面通过 NEE 估计到直接光。
+4. BSDF 采样之后打到 emitter / environment。
+
+注意：
+只有出现 L += ... 的地方，才是真的把光能加入最终结果。
+
+常见错误：
+1. emitter 或 environment 被重复加入，导致画面过亮。
+2. hit light 时忘记 MIS，导致亮度或噪声异常。
+3. delta / non-delta 分支权重混乱。
+
+
+Color beta
+-------------------------------------------------------------------------------
+路径 throughput。
+
+含义：
+从相机出发，经过若干次反弹之后，当前路径还剩下多少权重。
+
+可以理解为：
+前面所有 BRDF、cos 项、pdf 校正、俄罗斯轮盘校正累乘后的结果。
+
+更新规则：
+
+1. delta 材质：
+   beta *= f;
+
+2. non-delta 材质：
+   beta *= f * cosTheta / pdfBsdf;
+
+注意：
+beta 不是最终颜色，它只是后续光照贡献的权重。
+真正加入结果时通常是：
+
+   L += beta * 某个光照贡献;
+
+常见错误：
+1. delta 材质也乘 cos / pdf。
+2. non-delta 材质漏乘 cos / pdf。
+3. 俄罗斯轮盘存活后忘记 beta /= p。
+
+
+Ray ray
+-------------------------------------------------------------------------------
+当前正在追踪的射线。
+
+每个 bounce 都用 ray 和场景求交。
+BSDF 采样得到新的方向 wi 后，会生成下一条 ray：
+
+   ray = Ray(rec.p + rec.geometricNormal * 1e-4, wi);
+
+注意：
+这里的 1e-4 偏移是为了避免自相交。
+
+
+HitRecord rec
+-------------------------------------------------------------------------------
+当前 bounce 的命中信息。
+
+常用成员：
+
+rec.p
+    当前交点位置。
+
+rec.geometricNormal
+    几何法线，通常用于偏移 ray，避免自相交。
+
+rec.shadingNormal
+    着色法线，通常用于 BRDF / BSDF 计算。
+
+rec.material
+    当前命中的材质。
+
+rec 的用途：
+1. 判断是否命中材质。
+2. 判断材质是否发光。
+3. 做 NEE。
+4. 做 BSDF 采样。
+
+
+Vec3 wo
+-------------------------------------------------------------------------------
+出射方向，指向上一跳 / 相机方向。
+
+通常写法：
+
+   Vec3 wo = (-ray.direction).normalized();
+
+含义：
+站在当前交点 rec.p 上，往回看上一跳来的方向。
+
+wo 会传给：
+
+   material->eval(wo, n, wi);
+   material->sample(wo, n);
+   material->pdfValue(wo, n, wi);
+
+常见错误：
+把 wo 写成 ray.direction。
+
+正确的是：
+   wo = -ray.direction
+
+因为 ray.direction 是当前射线前进方向，
+而 wo 是从交点看向上一跳的方向。
+
+
+Vec3 wi
+-------------------------------------------------------------------------------
+入射方向 / 下一跳方向。
+
+wi 在两个地方会出现：
+
+1. NEE 中的 wi：
+   表示从当前表面指向采样到的光源方向。
+
+2. BSDF sample 中的 wi：
+   表示材质随机采样出来的下一跳方向。
+
+注意：
+两个 wi 都是“从当前交点出发”的方向，
+但它们属于不同采样策略。
+
+常见错误：
+1. 混淆 NEE 的 wi 和 BSDF 的 wi。
+2. 忘记 normalized()。
+3. 用错方向导致 BRDF 正反方向颠倒。
+
+
+===============================================================================
+二、NEE / Light Sampling 相关变量
+===============================================================================
+
+LightSelection lightSelection
+-------------------------------------------------------------------------------
+scene.sampleLight() 的返回结果。
+
+含义：
+先从场景中的多个光源里选出一个光源。
+
+重要成员：
+
+lightSelection.light
+    被选中的光源。
+
+lightSelection.selectionPdf
+    该光源被选中的概率。
+
+注意：
+selectionPdf 不一定是 1.0 / lightCount。
+如果你实现了按功率加权选光源，它就是 weighted pdf。
+
+
+double lightSelectionPdf
+-------------------------------------------------------------------------------
+当前光源被选中的概率。
+
+也就是：
+
+   p(select this light)
+
+它必须参与最终的 light pdf：
+
+   pdfLight = lightSelectionPdf * lightSample.pdf;
+
+常见错误：
+1. 忘记乘 lightSelectionPdf。
+2. 又手动写成 1.0 / scene.lights.size()。
+3. 重复乘 selectionPdf。
+
+
+LightSample lightSample
+-------------------------------------------------------------------------------
+被选中的光源内部采样结果。
+
+重要成员：
+
+lightSample.wi
+    从当前表面指向光源采样点的方向。
+
+lightSample.pdf
+    在该光源内部采样这个方向 / 点的 pdf。
+
+lightSample.emission
+    采样到的光源辐射亮度。
+
+lightSample.distance
+    当前点到光源采样点的距离。
+
+lightSample.isInfinite
+    是否是无限远环境光。
+
+
+double pdfLight
+-------------------------------------------------------------------------------
+light sampling 策略对当前方向的总 pdf。
+
+在 NEE 中：
+
+   pdfLight = lightSelectionPdf * lightSample.pdf;
+
+含义：
+先选中某个光源，再在这个光源上采样到当前方向的联合概率。
+
+也就是：
+
+   p(select light) * p(sample direction | selected light)
+
+这是 MIS 最核心的量之一。
+
+常见错误：
+1. 漏乘 lightSelectionPdf。
+2. 重复乘 lightSelectionPdf。
+3. 和 pdfBsdf 使用的测度不一致。
+
+
+double cosSurface
+-------------------------------------------------------------------------------
+当前表面对光源方向的余弦项。
+
+通常写法：
+
+   cosSurface = max(0, dot(rec.shadingNormal, wi));
+
+它用于直接光估计：
+
+   contribution = f * Le * cosSurface / pdfLight;
+
+注意：
+一般使用 shadingNormal 参与着色计算。
+并且必须 clamp 到 0。
+
+常见错误：
+1. 没有 max(0, ...)，背面也产生光照。
+2. 用错 normal。
+3. 忘记 cos 项导致能量不正确。
+
+
+===============================================================================
+三、BSDF Sampling 相关变量
+===============================================================================
+
+BSDFSample bsdfSample
+-------------------------------------------------------------------------------
+材质采样结果。
+
+由：
+
+   rec.material->sample(wo, rec.shadingNormal);
+
+返回。
+
+重要成员：
+
+bsdfSample.wi
+    BSDF 采样得到的下一跳方向。
+
+bsdfSample.f
+    BSDF 值，或者 delta 材质的路径权重。
+
+bsdfSample.pdf
+    BSDF 采样该方向的 pdf。
+
+bsdfSample.isDelta
+    当前采样事件是否是 delta 事件，例如理想镜面反射。
+
+bsdfSample.valid
+    当前采样是否有效。
+
+
+Color f
+-------------------------------------------------------------------------------
+BSDF 值，或者 delta 事件的权重。
+
+non-delta 情况：
+
+   beta *= f * cosTheta / pdfBsdf;
+
+delta 情况：
+
+   beta *= f;
+
+注意：
+delta 和 non-delta 的更新方式不同。
+
+常见错误：
+把 delta 材质当成普通 BRDF，继续乘 cos / pdf。
+
+
+double pdfBsdf
+-------------------------------------------------------------------------------
+BSDF 对当前 wi 的采样概率。
+
+用途：
+
+1. non-delta throughput 更新：
+
+   beta *= f * cosTheta / pdfBsdf;
+
+2. NEE 中参与 MIS：
+
+   misWeight = powerHeuristic(pdfLight, pdfBsdf);
+
+3. 保存给 previousBsdfPdf，
+   用于下一跳打到 light / environment 时计算 MIS。
+
+
+double cosTheta
+-------------------------------------------------------------------------------
+BSDF 随机采样方向和表面法线之间的余弦项。
+
+通常写法：
+
+   cosTheta = max(0, dot(rec.shadingNormal.normalized(), wi));
+
+只用于 non-delta 情况：
+
+   beta *= f * cosTheta / pdfBsdf;
+
+注意：
+delta 情况不要乘 cosTheta / pdfBsdf。
+
+
+===============================================================================
+四、MIS 历史状态 previous* 变量
+===============================================================================
+
+这组变量专门用于处理：
+
+上一跳是 BSDF sample，
+下一跳刚好打到了 emitter 或 environment。
+
+这种情况下，当前 light / environment 既可能通过：
+1. BSDF sampling 打到；
+2. NEE / light sampling 采到；
+
+所以需要 MIS 权重。
+
+
+bool previousWasBsdfSample
+-------------------------------------------------------------------------------
+上一段路径是不是由 BSDF 采样产生的。
+
+如果为 true，
+当当前 ray 命中 emitter 或 environment 时，
+就需要考虑 BSDF-hit-light 的 MIS 权重。
+
+
+bool previousWasDelta
+-------------------------------------------------------------------------------
+上一跳 BSDF 事件是否是 delta。
+
+如果 previousWasDelta == true，
+命中 emitter / environment 时 MIS 权重直接为 1。
+
+原因：
+delta 方向通常不能被普通 NEE 连续采样策略竞争到。
+
+
+double previousBsdfPdf
+-------------------------------------------------------------------------------
+上一跳 BSDF 采样当前方向时的 pdf。
+
+保存规则：
+
+   previousBsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
+
+delta 情况记为 0，
+因为 delta 不按普通连续 pdf 参与 MIS 竞争。
+
+
+Point3 previousPoint
+-------------------------------------------------------------------------------
+上一跳 BSDF 采样的出发点。
+
+用于查询：
+
+   scene.lightPdfSum(previousPoint, previousWi);
+
+含义：
+如果从 previousPoint 出发，用 light sampling 采样 previousWi 这个方向，
+它的 pdf 是多少。
+
+
+Vec3 previousWi
+-------------------------------------------------------------------------------
+上一跳 BSDF 实际采样出来的方向。
+
+和 previousPoint 一起用于计算 light sampling 对同一方向的 pdf。
+
+
+previousPoint + previousWi + previousBsdfPdf + previousWasDelta
+-------------------------------------------------------------------------------
+这四个变量共同决定：
+
+当 BSDF sample 打到 emitter 或 environment 时，
+这个贡献应该拿多少 MIS 权重。
+
+如果上一跳是 delta：
+   misWeight = 1;
+
+如果上一跳是 non-delta：
+   misWeight = powerHeuristic(previousBsdfPdf, scene.lightPdfSum(previousPoint, previousWi));
+
+
+===============================================================================
+五、辅助函数
+===============================================================================
+
+powerHeuristic(pdfA, pdfB)
+-------------------------------------------------------------------------------
+MIS 权重函数。
+
+公式：
+
+   weight = pdfA^2 / (pdfA^2 + pdfB^2)
+
+用途：
+在两种采样策略都可能采到同一个贡献时，
+根据各自 pdf 分配权重，减少噪声并避免重复计算。
+
+
+estimateDirectLightMIS(...)
+-------------------------------------------------------------------------------
+用于当前普通表面上的 NEE 直接光估计。
+
+执行流程：
+
+1. scene.sampleLight()
+   从场景中选一个光源。
+
+2. light->sample()
+   在选中的光源上采样一个方向 / 点。
+
+3. 计算：
+   pdfLight = selectionPdf * lightSample.pdf;
+
+4. 计算：
+   pdfBsdf = material->pdfValue(wo, n, wi);
+
+5. 计算 MIS：
+   misWeight = powerHeuristic(pdfLight, pdfBsdf);
+
+6. 返回直接光贡献：
+
+   f * Le * cos / pdfLight * misWeight
+
+注意：
+NEE 只是在当前点额外估计一份直接光，
+它不会改变 ray，也不会改变 beta。
+
+
+misWeightForBsdfHitLight(...)
+-------------------------------------------------------------------------------
+用于处理：
+
+上一跳通过 BSDF 采样，
+这一跳命中 emitter 或 environment。
+
+规则：
+
+1. 如果上一跳是 delta：
+   return 1.0;
+
+2. 否则：
+   return powerHeuristic(
+       previousBsdfPdf,
+       scene.lightPdfSum(previousPoint, previousWi)
+   );
+
+含义：
+BSDF sample 打到光源时，要和 light sampling / NEE 竞争。
+
+
+===============================================================================
+六、trace() 主流程总结
+===============================================================================
+
+trace() 的整体执行顺序：
+
+1. 初始化：
+   L = 0
+   beta = 1
+   ray = rayIn
+   previous* 清空
+
+2. 进入 bounce 循环。
+
+3. 当前 ray 和场景求交。
+
+4. 如果没有命中：
+   - 计算 environmentRadiance。
+   - 如果 bounce == 0，直接加到 L。
+   - 如果上一跳是 BSDF sample，则用 MIS 加到 L。
+   - break。
+
+5. 如果命中但没有材质：
+   - break。
+
+6. 如果命中 emitter：
+   - 如果 bounce == 0，直接加 emitted。
+   - 如果上一跳是 BSDF sample，则用 MIS 加 emitted。
+   - break。
+
+7. 如果命中普通表面：
+   - 计算 wo。
+   - 调用 estimateDirectLightMIS() 做 NEE。
+   - L += beta * directLight。
+
+8. 做 BSDF sample：
+   - 得到 wi / f / pdfBsdf / isDelta。
+   - 如果采样无效，break。
+
+9. 更新 beta：
+   - delta：beta *= f。
+   - non-delta：beta *= f * cosTheta / pdfBsdf。
+
+10. 深度足够后执行俄罗斯轮盘：
+    - 随机终止低贡献路径。
+    - 存活路径 beta /= p，保证无偏。
+
+11. 保存 previous*：
+    - previousWasBsdfSample = true;
+    - previousWasDelta = bsdfSample.isDelta;
+    - previousBsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
+    - previousPoint = rec.p;
+    - previousWi = wi;
+
+12. 生成下一条 ray：
+    - ray = Ray(rec.p + rec.geometricNormal * 1e-4, wi);
+
+13. 进入下一次 bounce。
+
+
+===============================================================================
+七、读代码时最重要的三条线
+===============================================================================
+
+1. L += ...
+-------------------------------------------------------------------------------
+只有 L += ... 的地方，才是真的把光加入最终结果。
+
+重点检查：
+- environment 是否加了一次。
+- emitter 是否加了一次。
+- NEE 是否乘了 beta。
+- BSDF-hit-light 是否用了 MIS。
+
+
+2. beta = ...
+-------------------------------------------------------------------------------
+beta 表示路径权重。
+
+重点检查：
+- delta 是否只乘 f。
+- non-delta 是否乘 f * cos / pdf。
+- RR 后是否 beta /= p。
+
+
+3. previous* = ...
+-------------------------------------------------------------------------------
+previous* 是为下一跳 MIS 服务的。
+
+重点检查：
+- BSDF sample 后是否正确保存。
+- delta 时 previousBsdfPdf 是否设为 0。
+- hit emitter / environment 时是否使用 previous* 算 MIS。
+
+
+===============================================================================
+八、最容易出 bug 的点
+===============================================================================
+
+1. wo 方向写反
+-------------------------------------------------------------------------------
+错误：
+   Vec3 wo = ray.direction;
+
+正确：
+   Vec3 wo = (-ray.direction).normalized();
+
+
+2. pdfLight 漏乘 selectionPdf
+-------------------------------------------------------------------------------
+错误：
+   pdfLight = lightSample.pdf;
+
+正确：
+   pdfLight = lightSelectionPdf * lightSample.pdf;
+
+
+3. delta 材质错误乘 cos / pdf
+-------------------------------------------------------------------------------
+错误：
+   beta *= f * cosTheta / pdfBsdf;
+
+正确：
+   if (isDelta)
+       beta *= f;
+   else
+       beta *= f * cosTheta / pdfBsdf;
+
+
+4. BSDF 命中光源时没有 MIS
+-------------------------------------------------------------------------------
+如果上一跳 BSDF sample 直接打到 emitter / environment，
+不能无脑 L += beta * Le。
+
+应该根据 previousWasDelta / previousBsdfPdf / lightPdfSum 计算 MIS。
+
+
+5. environment 和 emitter 重复加
+-------------------------------------------------------------------------------
+NEE 已经可能采样到光源。
+BSDF sample 也可能打到光源。
+所以 hit light 分支必须用 MIS，而不是简单重复全权重加入。
+
+
+6. previous* 保存位置错误
+-------------------------------------------------------------------------------
+previous* 应该在 BSDF sample 成功、beta 更新之后、发射下一条 ray 之前保存。
+
+它描述的是：
+“从当前点出发，BSDF 采样出了 wi 这个方向。”
+
+
+7. 自相交偏移方向不合适
+-------------------------------------------------------------------------------
+通常用 geometricNormal 做偏移：
+
+   rec.p + rec.geometricNormal * 1e-4
+
+不要完全不偏移，否则下一条 ray 可能再次打到自己。
+
+
+===============================================================================
+一句话总结
+===============================================================================
+
+当前 renderer.cpp 的核心状态机是：
+
+- L 负责累计最终光能。
+- beta 负责传递路径权重。
+- NEE 负责主动采样光源，降低直接光噪声。
+- BSDF sample 负责继续生成路径。
+- pdfLight 和 pdfBsdf 负责 MIS。
+- previous* 负责在 BSDF 打到 light / environment 时补上 MIS 竞争关系。
+*/

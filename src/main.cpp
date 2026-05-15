@@ -402,7 +402,8 @@ int main() {
 
     buildMaterialTestScene(scene);
 
-    // debugLightSelection(scene, 100000);
+    //十万次光源选择测试
+    //debugLightSelection(scene, 100000);
 
     // 所有物体添加完成后构建 BVH
     if (config.enableBVH) {

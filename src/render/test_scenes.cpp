@@ -83,4 +83,30 @@ void buildMaterialTestScene(Scene& scene) {
     );
 
     scene.add(bunny);
+
+
+    Color lightEmission(5.0, 5.0, 5.0);
+
+    auto lightMat =
+        std::make_shared<DiffuseLight>(
+            lightEmission
+        );
+
+    Point3 lightCorner(-0.5, 1.4, -2.8);
+    Vec3 lightU(1.0, 0.0, 0.0);
+    Vec3 lightV(0.0, 0.0, 1.0);
+
+    scene.add(std::make_shared<Quad>(
+        lightCorner,
+        lightU,
+        lightV,
+        lightMat
+    ));
+
+    scene.addLight(std::make_shared<QuadLight>(
+        lightCorner,
+        lightU,
+        lightV,
+        lightEmission
+    ));
 }
