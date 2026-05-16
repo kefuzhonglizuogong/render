@@ -5,9 +5,9 @@
 
 
 /*
-eval()£ºÕâ¸ö·½ÏòµÄ BRDF ÖµÊÇ¶àÉÙ
-pdfValue()£º²Éµ½Õâ¸ö·½ÏòµÄ¸ÅÂÊÊÇ¶àÉÙ
-sample()£ºÔõÃ´°´ÖØÒªĞÔ²ÉÑù·½Ïò
+eval()ï¼šè¿™ä¸ªæ–¹å‘çš„ BRDF å€¼æ˜¯å¤šå°‘
+pdfValue()ï¼šé‡‡åˆ°è¿™ä¸ªæ–¹å‘çš„æ¦‚ç‡æ˜¯å¤šå°‘
+sample()ï¼šæ€ä¹ˆæŒ‰é‡è¦æ€§é‡‡æ ·æ–¹å‘
 */
 class Material {
 public:
@@ -111,10 +111,12 @@ class GGXMetal : public Material {
 public:
     Color albedo;
     double roughness;
+    bool useVNDFSampling;
 
     GGXMetal(
         const Color& albedo,
-        double roughness
+        double roughness,
+        bool useVNDFSampling = true
     );
 
     Color eval(
@@ -138,7 +140,7 @@ public:
 class Dielectric : public Material {
 public:
     Color albedo;
-    double ior;//ior = index of refraction£¬ÕÛÉäÂÊ
+    double ior;//ior = index of refractionï¼ŒæŠ˜å°„ç‡
     /*
     air     1.0
     water   1.33

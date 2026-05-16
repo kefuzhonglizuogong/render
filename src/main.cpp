@@ -390,14 +390,59 @@ int main() {
         metalRough
     ));*/
 
-    /*GGXMetal debugMetal(Color(0.9, 0.7, 0.3), 0.05);
-
+    std::cout << "\n--- GGX 0.25 VNDF ---\n";
+    GGXMetal ggx025_vndf(Color(0.9, 0.7, 0.3), 0.25, true);
     debugBSDFSampling(
-        debugMetal,
+        ggx025_vndf,
         Vec3(0.0, 1.0, 0.0),
         Vec3(0.0, 1.0, 0.0),
         100000
-    );*/
+    );
+
+    std::cout << "\n--- GGX 0.25 Legacy ---\n";
+    GGXMetal ggx025_legacy(Color(0.9, 0.7, 0.3), 0.25, false);
+    debugBSDFSampling(
+        ggx025_legacy,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
+
+    std::cout << "\n--- GGX 0.05 VNDF ---\n";
+    GGXMetal ggx005_vndf(Color(0.9, 0.7, 0.3), 0.05, true);
+    debugBSDFSampling(
+        ggx005_vndf,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
+
+    std::cout << "\n--- GGX 0.05 Legacy ---\n";
+    GGXMetal ggx005_legacy(Color(0.9, 0.7, 0.3), 0.05, false);
+    debugBSDFSampling(
+        ggx005_legacy,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
+
+    std::cout << "\n--- GGX 0.60 VNDF ---\n";
+    GGXMetal ggx060_vndf(Color(0.9, 0.7, 0.3), 0.60, true);
+    debugBSDFSampling(
+        ggx060_vndf,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
+
+    std::cout << "\n--- GGX 0.60 Legacy ---\n";
+    GGXMetal ggx060_legacy(Color(0.9, 0.7, 0.3), 0.60, false);
+    debugBSDFSampling(
+        ggx060_legacy,
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        100000
+    );
 
 
     buildMaterialTestScene(scene);

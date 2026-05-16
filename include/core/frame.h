@@ -27,4 +27,12 @@ public:
     Vec3 toWorld(const Vec3& local) const {
         return local.x * s + local.y * t + local.z * n;
     }
+
+    Vec3 toLocal(const Vec3& world) const {
+        return Vec3(
+            dot(world, s),
+            dot(world, t),
+            dot(world, n)
+        );
+    }
 };
