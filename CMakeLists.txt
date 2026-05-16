@@ -58,6 +58,6 @@ add_executable(mini_path_tracer
     include/render/scene.h
     include/io/image_loader.h
     include/io/obj_loader.h
- "include/render/test_scenes.h" "src/render/test_scenes.cpp")
+ "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h")
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

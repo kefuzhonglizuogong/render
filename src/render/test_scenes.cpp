@@ -87,10 +87,7 @@ void buildMaterialTestScene(Scene& scene) {
 
     Color lightEmission(5.0, 5.0, 5.0);
 
-    auto lightMat =
-        std::make_shared<DiffuseLight>(
-            lightEmission
-        );
+    auto lightMat =std::make_shared<DiffuseLight>(lightEmission);
 
     Point3 lightCorner(-0.5, 1.4, -2.8);
     Vec3 lightU(1.0, 0.0, 0.0);

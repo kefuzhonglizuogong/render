@@ -4,6 +4,7 @@
 
 struct RenderStats {
     std::uint64_t sceneIntersectCalls = 0;
+    std::uint64_t guidingVertices = 0;
 
     std::uint64_t bvhNodeIntersectCalls = 0;
     std::uint64_t aabbHitCalls = 0;
@@ -15,6 +16,7 @@ struct RenderStats {
 
     void reset() {
         sceneIntersectCalls = 0;
+        guidingVertices = 0;
 
         bvhNodeIntersectCalls = 0;
         aabbHitCalls = 0;
@@ -22,6 +24,7 @@ struct RenderStats {
         sphereIntersectCalls = 0;
         quadIntersectCalls = 0;
         triangleIntersectCalls = 0;
+        meshIntersectCalls = 0;
     }
 };
 

@@ -390,60 +390,6 @@ int main() {
         metalRough
     ));*/
 
-    std::cout << "\n--- GGX 0.25 VNDF ---\n";
-    GGXMetal ggx025_vndf(Color(0.9, 0.7, 0.3), 0.25, true);
-    debugBSDFSampling(
-        ggx025_vndf,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
-    std::cout << "\n--- GGX 0.25 Legacy ---\n";
-    GGXMetal ggx025_legacy(Color(0.9, 0.7, 0.3), 0.25, false);
-    debugBSDFSampling(
-        ggx025_legacy,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
-    std::cout << "\n--- GGX 0.05 VNDF ---\n";
-    GGXMetal ggx005_vndf(Color(0.9, 0.7, 0.3), 0.05, true);
-    debugBSDFSampling(
-        ggx005_vndf,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
-    std::cout << "\n--- GGX 0.05 Legacy ---\n";
-    GGXMetal ggx005_legacy(Color(0.9, 0.7, 0.3), 0.05, false);
-    debugBSDFSampling(
-        ggx005_legacy,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
-    std::cout << "\n--- GGX 0.60 VNDF ---\n";
-    GGXMetal ggx060_vndf(Color(0.9, 0.7, 0.3), 0.60, true);
-    debugBSDFSampling(
-        ggx060_vndf,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
-    std::cout << "\n--- GGX 0.60 Legacy ---\n";
-    GGXMetal ggx060_legacy(Color(0.9, 0.7, 0.3), 0.60, false);
-    debugBSDFSampling(
-        ggx060_legacy,
-        Vec3(0.0, 1.0, 0.0),
-        Vec3(0.0, 1.0, 0.0),
-        100000
-    );
-
 
     buildMaterialTestScene(scene);
 
@@ -459,6 +405,8 @@ int main() {
     Camera camera(aspectRatio);
     Film film(imageWidth, imageHeight);
     Renderer renderer(samplesPerPixel, maxDepth);
+
+    renderer.setEnableGuidingRecord(true);
 
     gStats.reset();
 
@@ -476,13 +424,12 @@ int main() {
     double renderSeconds =
         std::chrono::duration<double>(endTime - startTime).count();
 
-    std::cout << "Render finished: "
-        << config.outputPath
-        << std::endl;
+    std::cout << "Render finished: "<< config.outputPath<< std::endl;
 
     std::cout << "\n=== Render Stats ===\n";
     std::cout << "Render time seconds:       " << renderSeconds << "\n";
     std::cout << "Scene intersect calls:     " << gStats.sceneIntersectCalls << "\n";
+    std::cout << "Guiding vertices:          " << gStats.guidingVertices << "\n";
     std::cout << "BVH node intersect calls:  " << gStats.bvhNodeIntersectCalls << "\n";
     std::cout << "AABB hit calls:            " << gStats.aabbHitCalls << "\n";
     std::cout << "Sphere intersect calls:    " << gStats.sphereIntersectCalls << "\n";
@@ -719,4 +666,37 @@ Mesh intersect calls:      9717673
 Primitive intersect calls: 53044753
 ====================
 
+*/
+/*
+Loaded PPM image: D:/Program/Project/mini_renderer\models/test_env.ppm
+Resolution: 8 x 4
+Intensity scale: 8
+LatLongEnvironmentLight distribution built.
+Resolution: 8 x 4
+Total weight: 16.4792
+
+=== OBJ Normalize Info ===
+Original bbox min: -0.0943804, 0.0333099, -0.0616792
+Original bbox max: 0.0607788, 0.186996, 0.0587146
+Original center: -0.0168008, 0.110153, -0.00148226
+Scale factor: 4.83374
+Loaded OBJ: D:/Program/Project/mini_renderer/models/bunny.obj
+Vertices: 2503
+Vertex normals: 0
+Triangles: 4968
+Rendering line 225 / 225
+Render finished: D:/Program/Project/mini_renderer\output\render_20260516_204936.ppm
+
+=== Render Stats ===
+Render time seconds:       77.7202
+Scene intersect calls:     28569328
+Guiding vertices:          6472115
+BVH node intersect calls:  164609249
+AABB hit calls:            164609249
+Sphere intersect calls:    15617334
+Quad intersect calls:      12614759
+Triangle intersect calls:  3585824
+Mesh intersect calls:      4212039
+Primitive intersect calls: 31817917
+====================
 */

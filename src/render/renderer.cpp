@@ -1,4 +1,5 @@
 #include "render/renderer.h"
+#include "core/stats.h"
 #include "material/material.h"
 #include "core/random.h"
 #include "light/light.h"
@@ -81,7 +82,7 @@ namespace {
 
         double misWeight =powerHeuristic(pdfLight, pdfBsdf);
 
-        //×îÖÕÑÕÉ« = ²ÄÖÊ·´ÉäÂÊ ¡Á ¹âÑÕÉ« ¡Á ÓàÏÒË¥¼õ / ²ÉÑù¸ÅÂÊ ¡Á MIS È¨ÖØ
+        //æœ€ç»ˆé¢œè‰² = æè´¨åå°„çŽ‡ Ã— å…‰é¢œè‰² Ã— ä½™å¼¦è¡°å‡ / é‡‡æ ·æ¦‚çŽ‡ Ã— MIS æƒé‡
         return f * lightSample.emission * (cosSurface / pdfLight) * misWeight;
     }
 
@@ -110,32 +111,41 @@ Renderer::Renderer(int spp, int depth)
     : samplesPerPixel(spp), maxDepth(depth) {
 }
 
+void Renderer::setEnableGuidingRecord(bool enabled) {
+    enableGuidingRecord = enabled;
+}
 
 /*
-trace() Ö´ÐÐÂß¼­£º
+trace() æ‰§è¡Œé€»è¾‘ï¼š
 
-1. ³õÊ¼»¯ L¡¢beta¡¢ray ºÍ previous* ×´Ì¬¡£
-2. Ã¿¸ö bounce ÏÈÓÃ ray ºÍ³¡¾°Çó½»¡£
-3. Èç¹ûÃ»ÃüÖÐ£¬ËµÃ÷¿´µ½ÁË environment£º
-   - Ö÷ÉäÏßÖ±½Ó¿´µ½ environment£ºÖ±½Ó¼Óµ½ L¡£
-   - BSDF sample Ö®ºó¿´µ½ environment£ºÓÃ MIS ¼Óµ½ L¡£
-4. Èç¹ûÃüÖÐ emitter£º
-   - Ö÷ÉäÏßÖ±½ÓÃüÖÐ emitter£ºÖ±½Ó¼Óµ½ L¡£
-   - BSDF sample Ö®ºóÃüÖÐ emitter£ºÓÃ MIS ¼Óµ½ L¡£
-5. Èç¹ûÃüÖÐÆÕÍ¨±íÃæ£º
-   - ÏÈ×ö NEE£¬Ö÷¶¯²ÉÑù¹âÔ´£¬µÃµ½Ö±½Ó¹â¡£
-   - ÔÙ×ö BSDF sample£¬µÃµ½ÏÂÒ»Ìø·½Ïò wi¡£
-   - ¸ù¾Ý delta / non-delta ¸üÐÂ beta¡£
-6. Éî¶È×ã¹»ºóÖ´ÐÐ¶íÂÞË¹ÂÖÅÌ¡£
-7. ±£´æ previous*£¬ÓÃÓÚÏÂÒ»ÌøÈç¹û´òµ½ light / environment Ê±¼ÆËã MIS¡£
-8. ·¢ÉäÏÂÒ»Ìõ ray£¬¼ÌÐø bounce¡£
+1. åˆå§‹åŒ– Lã€betaã€ray å’Œ previous* çŠ¶æ€ã€‚
+2. æ¯ä¸ª bounce å…ˆç”¨ ray å’Œåœºæ™¯æ±‚äº¤ã€‚
+3. å¦‚æžœæ²¡å‘½ä¸­ï¼Œè¯´æ˜Žçœ‹åˆ°äº† environmentï¼š
+   - ä¸»å°„çº¿ç›´æŽ¥çœ‹åˆ° environmentï¼šç›´æŽ¥åŠ åˆ° Lã€‚
+   - BSDF sample ä¹‹åŽçœ‹åˆ° environmentï¼šç”¨ MIS åŠ åˆ° Lã€‚
+4. å¦‚æžœå‘½ä¸­ emitterï¼š
+   - ä¸»å°„çº¿ç›´æŽ¥å‘½ä¸­ emitterï¼šç›´æŽ¥åŠ åˆ° Lã€‚
+   - BSDF sample ä¹‹åŽå‘½ä¸­ emitterï¼šç”¨ MIS åŠ åˆ° Lã€‚
+5. å¦‚æžœå‘½ä¸­æ™®é€šè¡¨é¢ï¼š
+   - å…ˆåš NEEï¼Œä¸»åŠ¨é‡‡æ ·å…‰æºï¼Œå¾—åˆ°ç›´æŽ¥å…‰ã€‚
+   - å†åš BSDF sampleï¼Œå¾—åˆ°ä¸‹ä¸€è·³æ–¹å‘ wiã€‚
+   - æ ¹æ® delta / non-delta æ›´æ–° betaã€‚
+6. æ·±åº¦è¶³å¤ŸåŽæ‰§è¡Œä¿„ç½—æ–¯è½®ç›˜ã€‚
+7. ä¿å­˜ previous*ï¼Œç”¨äºŽä¸‹ä¸€è·³å¦‚æžœæ‰“åˆ° light / environment æ—¶è®¡ç®— MISã€‚
+8. å‘å°„ä¸‹ä¸€æ¡ rayï¼Œç»§ç»­ bounceã€‚
 
-ºËÐÄ¼ì²éµã£º
-- L += ... ±íÊ¾ÕæÕýÀÛ¼Æ¹â¡£
-- beta *= ... ±íÊ¾¸üÐÂÂ·¾¶È¨ÖØ¡£
-- previous* ±íÊ¾ÎªÏÂÒ»ÌøµÄ BSDF-hit-light MIS ±£´æ×´Ì¬¡£
+æ ¸å¿ƒæ£€æŸ¥ç‚¹ï¼š
+- L += ... è¡¨ç¤ºçœŸæ­£ç´¯è®¡å…‰ã€‚
+- beta *= ... è¡¨ç¤ºæ›´æ–°è·¯å¾„æƒé‡ã€‚
+- previous* è¡¨ç¤ºä¸ºä¸‹ä¸€è·³çš„ BSDF-hit-light MIS ä¿å­˜çŠ¶æ€ã€‚
 */
 Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
+    GuidingRecord guidingRecord;
+
+    if (enableGuidingRecord) {
+        guidingRecord.clear();
+    }
+
     Color L(0.0, 0.0, 0.0);
     Color beta(1.0, 1.0, 1.0);
 
@@ -213,8 +223,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         L += beta * directLight;
 
-        BSDFSample bsdfSample =
-            rec.material->sample(wo, rec.shadingNormal);
+        BSDFSample bsdfSample =rec.material->sample(wo, rec.shadingNormal);
 
         if (!bsdfSample.valid || bsdfSample.pdf <= 1e-12) {
             break;
@@ -223,20 +232,41 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         Vec3 wi = bsdfSample.wi.normalized();
         Color f = bsdfSample.f;
         double pdfBsdf = bsdfSample.pdf;
+        double cosTheta = 1.0;
+
+        if (!bsdfSample.isDelta) {
+            cosTheta = std::max(0.0,dot(rec.shadingNormal.normalized(), wi));
+
+            if (cosTheta <= 0.0) {
+                break;
+            }
+        }
+
+        if (enableGuidingRecord) {
+            PathVertex vertex;
+            vertex.position = rec.p;
+            vertex.geometricNormal = rec.geometricNormal;
+            vertex.shadingNormal = rec.shadingNormal;
+            vertex.wo = wo;
+            vertex.wi = wi;
+            vertex.throughput = beta;
+            vertex.bsdfValue = f;
+            vertex.bsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
+            vertex.lightPdf = bsdfSample.isDelta ? 0.0 : scene.lightPdfSum(rec.p, wi);
+            vertex.cosTheta = bsdfSample.isDelta ? 1.0 : cosTheta;
+            vertex.depth = bounce;
+            vertex.eventType = bsdfSample.type;
+            vertex.isDelta = bsdfSample.isDelta;
+            vertex.valid = true;
+
+            guidingRecord.addVertex(vertex);
+            ++gStats.guidingVertices;
+        }
 
         if (bsdfSample.isDelta) {
             beta = beta * f;
         }
         else {
-            double cosTheta = std::max(
-                0.0,
-                dot(rec.shadingNormal.normalized(), wi)
-            );
-
-            if (cosTheta <= 0.0) {
-                break;
-            }
-
             beta = beta * f * (cosTheta / pdfBsdf);
         }
 
@@ -257,6 +287,10 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         previousWi = wi;
 
         ray = Ray(rec.p + rec.geometricNormal * 1e-4, wi);
+    }
+
+    if (enableGuidingRecord) {
+        guidingRecord.finalRadiance = L;
     }
 
     return L;
