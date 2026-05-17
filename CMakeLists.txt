@@ -15,6 +15,7 @@ add_executable(mini_path_tracer
     src/render/renderer.cpp
     src/render/scene.cpp
     src/render/test_scenes.cpp
+    src/render/guiding_debug.cpp
     src/material/material.cpp
     src/material/bsdf_debug.cpp
     src/geometry/plane.cpp
@@ -58,6 +59,6 @@ add_executable(mini_path_tracer
     include/render/scene.h
     include/io/image_loader.h
     include/io/obj_loader.h
- "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h")
+ "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h" "include/render/guiding_debug.h" "src/render/guiding_debug.cpp")
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

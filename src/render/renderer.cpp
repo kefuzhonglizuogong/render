@@ -4,6 +4,7 @@
 #include "core/random.h"
 #include "light/light.h"
 #include "material/bsdf_sample.h"
+#include "render/guiding_debug.h"
 
 #include <algorithm>
 #include <cmath>
@@ -105,6 +106,8 @@ namespace {
             pdfLight
         );
     }
+
+    GuidingDebugCollector gGuidingDebugCollector;
 }
 
 Renderer::Renderer(int spp, int depth)
@@ -260,6 +263,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             vertex.valid = true;
 
             guidingRecord.addVertex(vertex);
+            gGuidingDebugCollector.recordVertex(vertex);
             ++gStats.guidingVertices;
         }
 
@@ -297,6 +301,10 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 }
 
 void Renderer::render(const Scene& scene, const Camera& camera, Film& film) const {
+    if (enableGuidingRecord) {
+        gGuidingDebugCollector.reset();
+    }
+
     for (int j = 0; j < film.height; ++j) {
         std::cout << "\rRendering line " << (j + 1) << " / " << film.height << std::flush;
 
@@ -316,4 +324,8 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
     }
 
     std::cout << std::endl;
+
+    if (enableGuidingRecord) {
+        gGuidingDebugCollector.print();
+    }
 }
