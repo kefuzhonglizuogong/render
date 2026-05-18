@@ -78,7 +78,7 @@ namespace {
 }  // namespace
 
 int main() {
-    debugDirectionalHistogram();
+    //debugDirectionalHistogram();
 
     RenderConfig config;
     resolveConfigPaths(config);
@@ -409,7 +409,7 @@ int main() {
     Film film(imageWidth, imageHeight);
     Renderer renderer(samplesPerPixel, maxDepth);
 
-    renderer.setEnableGuidingRecord(false);
+    renderer.setEnableGuidingRecord(true);
 
     gStats.reset();
 

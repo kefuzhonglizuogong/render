@@ -5,6 +5,7 @@
 #include "light/light.h"
 #include "material/bsdf_sample.h"
 #include "render/guiding_debug.h"
+#include "guiding/guiding_trainer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -108,6 +109,7 @@ namespace {
     }
 
     GuidingDebugCollector gGuidingDebugCollector;
+    GuidingTrainer gGuidingTrainer;
 }
 
 Renderer::Renderer(int spp, int depth)
@@ -264,6 +266,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
             guidingRecord.addVertex(vertex);
             gGuidingDebugCollector.recordVertex(vertex);
+            gGuidingTrainer.recordVertex(vertex);
+
             ++gStats.guidingVertices;
         }
 
@@ -303,6 +307,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 void Renderer::render(const Scene& scene, const Camera& camera, Film& film) const {
     if (enableGuidingRecord) {
         gGuidingDebugCollector.reset();
+        gGuidingTrainer.reset();
     }
 
     for (int j = 0; j < film.height; ++j) {
@@ -326,6 +331,9 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
     std::cout << std::endl;
 
     if (enableGuidingRecord) {
+        gGuidingTrainer.build();
+
         gGuidingDebugCollector.print();
+        gGuidingTrainer.printStats();
     }
 }
