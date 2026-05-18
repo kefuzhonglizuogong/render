@@ -27,6 +27,46 @@ namespace {
         return maxComponent(c) <= 1e-12;
     }
 
+    bool isBadNumber(double x) {
+        return std::isnan(x) || std::isinf(x);
+    }
+
+    void recordPdfStats(double pdfBsdf,double pdfGuided,double pdfFinal) {
+        if (pdfBsdf > 0.0 && !isBadNumber(pdfBsdf)) {
+            gStats.minBsdfPdf = std::min(gStats.minBsdfPdf, pdfBsdf);
+            gStats.maxBsdfPdf = std::max(gStats.maxBsdfPdf, pdfBsdf);
+            gStats.sumBsdfPdf += pdfBsdf;
+        }
+
+        if (pdfGuided > 0.0 && !isBadNumber(pdfGuided)) {
+            gStats.minGuidedPdf = std::min(gStats.minGuidedPdf, pdfGuided);
+            gStats.maxGuidedPdf = std::max(gStats.maxGuidedPdf, pdfGuided);
+            gStats.sumGuidedPdf += pdfGuided;
+        }
+
+        if (pdfFinal > 0.0 && !isBadNumber(pdfFinal)) {
+            gStats.minFinalPdf = std::min(gStats.minFinalPdf, pdfFinal);
+            gStats.maxFinalPdf = std::max(gStats.maxFinalPdf, pdfFinal);
+            gStats.sumFinalPdf += pdfFinal;
+        }
+
+        if (pdfGuided <= 1e-12) {
+            ++gStats.guidedPdfZeroSamples;
+        }
+
+        if (isBadNumber(pdfGuided)) {
+            ++gStats.guidedPdfBadSamples;
+        }
+
+        if (pdfFinal <= 1e-12) {
+            ++gStats.finalPdfZeroSamples;
+        }
+
+        if (isBadNumber(pdfFinal)) {
+            ++gStats.finalPdfBadSamples;
+        }
+    }
+
     Color estimateDirectLightMIS(const HitRecord& rec,const Vec3& wo,const Scene& scene) {
         if (!rec.material) {
             return Color(0.0, 0.0, 0.0);
@@ -297,10 +337,15 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             bool chooseGuiding = canUseGuiding && randomDouble() < pGuiding;
 
             if (chooseGuiding) {
+                ++gStats.guidedStrategySamples;
+
                 DirectionalSample guidedSample = gGuidingTrainer.distribution().sample();
 
                 if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
                     // guiding 无效时回退到最初的 BSDF sample
+                    ++gStats.guidedInvalidSamples;
+                    ++gStats.guidedFallbackSamples;
+                    ++gStats.bsdfStrategySamples;
                     bsdfSample = initialSample;
 
                     wi = bsdfSample.wi.normalized();
@@ -318,6 +363,9 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
                     if (cosCheck <= 0.0) {
                         // guided 方向在表面下方，回退到 BSDF sample
+                        ++gStats.guidedBelowSurfaceSamples;
+                        ++gStats.guidedFallbackSamples;
+                        ++gStats.bsdfStrategySamples;
                         bsdfSample = initialSample;
 
                         wi = bsdfSample.wi.normalized();
@@ -347,6 +395,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 }
             }
             else {
+                ++gStats.bsdfStrategySamples;
                 bsdfSample = initialSample;
 
                 wi = bsdfSample.wi.normalized();
@@ -362,7 +411,9 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
             pdfFinal = pBsdf * pdfBsdf + pGuiding * pdfGuided;
 
-            if (pdfFinal <= 1e-12) {
+            recordPdfStats(pdfBsdf,pdfGuided,pdfFinal);
+
+            if (pdfFinal <= 1e-12 || isBadNumber(pdfFinal)) {
                 break;
             }
 

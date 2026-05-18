@@ -469,6 +469,73 @@ int main() {
     std::cout << "Primitive intersect calls: " << primitiveCalls << "\n";
     std::cout << "====================\n";
 
+    std::cout << "\n=== Guided Sampling Stats ===\n";
+
+    std::cout << "BSDF strategy samples:        "
+              << gStats.bsdfStrategySamples << "\n";
+
+    std::cout << "Guided strategy samples:      "
+              << gStats.guidedStrategySamples << "\n";
+
+    std::cout << "Guided fallback samples:      "
+              << gStats.guidedFallbackSamples << "\n";
+
+    std::cout << "Guided invalid samples:       "
+              << gStats.guidedInvalidSamples << "\n";
+
+    std::cout << "Guided below-surface samples: "
+              << gStats.guidedBelowSurfaceSamples << "\n";
+
+    std::cout << "Guided pdf zero samples:      "
+              << gStats.guidedPdfZeroSamples << "\n";
+
+    std::cout << "Guided pdf bad samples:       "
+              << gStats.guidedPdfBadSamples << "\n";
+
+    std::cout << "Final pdf zero samples:       "
+              << gStats.finalPdfZeroSamples << "\n";
+
+    std::cout << "Final pdf bad samples:        "
+              << gStats.finalPdfBadSamples << "\n";
+
+    std::uint64_t nonDeltaSamples =
+        gStats.bsdfStrategySamples +
+        gStats.guidedStrategySamples;
+
+    if (nonDeltaSamples > 0) {
+        std::cout << "Guided attempt ratio:         "
+                  << static_cast<double>(gStats.guidedStrategySamples) /
+                  static_cast<double>(nonDeltaSamples)
+                  << "\n";
+    }
+
+    if (gStats.guidedStrategySamples > 0) {
+        std::cout << "Guided fallback ratio:        "
+                  << static_cast<double>(gStats.guidedFallbackSamples) /
+                  static_cast<double>(gStats.guidedStrategySamples)
+                  << "\n";
+    }
+
+    std::cout << "Min BSDF pdf:                 "
+              << gStats.minBsdfPdf << "\n";
+
+    std::cout << "Max BSDF pdf:                 "
+              << gStats.maxBsdfPdf << "\n";
+
+    std::cout << "Min guided pdf:               "
+              << gStats.minGuidedPdf << "\n";
+
+    std::cout << "Max guided pdf:               "
+              << gStats.maxGuidedPdf << "\n";
+
+    std::cout << "Min final pdf:                "
+              << gStats.minFinalPdf << "\n";
+
+    std::cout << "Max final pdf:                "
+              << gStats.maxFinalPdf << "\n";
+
+    std::cout << "=============================\n";
+
     return 0;
 }
 
