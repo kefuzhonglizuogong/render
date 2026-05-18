@@ -406,15 +406,40 @@ int main() {
 
 
     Camera camera(aspectRatio);
+
+    // =====================================================
+    // 训练阶段：
+    // 先用普通路径追踪采样，记录 PathVertex，
+    // 训练全局方向直方图，但不保存这一阶段图像。
+    // =====================================================
+    Film trainingFilm(imageWidth, imageHeight);
+    Renderer trainingRenderer(samplesPerPixel, maxDepth);
+
+    trainingRenderer.setEnableGuidingRecord(true);
+    trainingRenderer.setEnableGuidedSampling(false);
+
+    // =====================================================
+    // 引导渲染阶段：
+    // 使用训练好的 guiding 分布参与方向采样，
+    // 最终保存这一阶段的渲染结果。
+    // =====================================================
     Film film(imageWidth, imageHeight);
     Renderer renderer(samplesPerPixel, maxDepth);
 
-    renderer.setEnableGuidingRecord(true);
+    renderer.setEnableGuidingRecord(false);
+    renderer.setEnableGuidedSampling(true);
+    renderer.setGuidingProbability(0.5);
 
     gStats.reset();
 
     auto startTime = std::chrono::high_resolution_clock::now();
+
+    std::cout << "\n=== Training Pass ===\n";
+    trainingRenderer.render(scene, camera, trainingFilm);
+
+    std::cout << "\n=== Guided Render Pass ===\n";
     renderer.render(scene, camera, film);
+
     auto endTime = std::chrono::high_resolution_clock::now();
 
     const std::filesystem::path outputPath(config.outputPath);
@@ -424,8 +449,7 @@ int main() {
 
     film.savePPM(config.outputPath, samplesPerPixel);
 
-    double renderSeconds =
-        std::chrono::duration<double>(endTime - startTime).count();
+    double renderSeconds = std::chrono::duration<double>(endTime - startTime).count();
 
     std::cout << "Render finished: "<< config.outputPath<< std::endl;
 
@@ -439,10 +463,7 @@ int main() {
     std::cout << "Quad intersect calls:      " << gStats.quadIntersectCalls << "\n";
     std::cout << "Triangle intersect calls:  " << gStats.triangleIntersectCalls << "\n";
 
-    std::uint64_t primitiveCalls =
-        gStats.sphereIntersectCalls +
-        gStats.quadIntersectCalls +
-        gStats.triangleIntersectCalls;
+    std::uint64_t primitiveCalls = gStats.sphereIntersectCalls + gStats.quadIntersectCalls + gStats.triangleIntersectCalls;
 
     std::cout << "Mesh intersect calls:      " << gStats.meshIntersectCalls << "\n";
     std::cout << "Primitive intersect calls: " << primitiveCalls << "\n";

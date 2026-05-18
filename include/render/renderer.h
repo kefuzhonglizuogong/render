@@ -11,10 +11,17 @@ public:
     int maxDepth;//最多允许反弹多少次
 
     bool enableGuidingRecord = false;
+    bool enableGuidedSampling = false;
+
+    double guidingProbability = 0.5;
 
     Renderer(int spp, int depth);
 
     void setEnableGuidingRecord(bool enabled);
+
+    void setEnableGuidedSampling(bool enabled);
+
+    void setGuidingProbability(double probability);
 
     Color trace(const Ray& ray, const Scene& scene, int depth) const;
     void render(const Scene& scene, const Camera& camera, Film& film) const;

@@ -6,6 +6,8 @@
 #include "material/bsdf_sample.h"
 #include "render/guiding_debug.h"
 #include "guiding/guiding_trainer.h"
+#include "guiding/directional_histogram.h"
+
 
 #include <algorithm>
 #include <cmath>
@@ -15,11 +17,9 @@ namespace {
     double powerHeuristic(double pdfA, double pdfB) {
         double a = pdfA * pdfA;
         double b = pdfB * pdfB;
-
         if (a + b <= 0.0) {
             return 0.0;
         }
-
         return a / (a + b);
     }
 
@@ -118,6 +118,17 @@ Renderer::Renderer(int spp, int depth)
 
 void Renderer::setEnableGuidingRecord(bool enabled) {
     enableGuidingRecord = enabled;
+}
+
+void Renderer::setEnableGuidedSampling(bool enabled) {
+    enableGuidedSampling = enabled;
+}
+
+void Renderer::setGuidingProbability(double probability) {
+    guidingProbability = std::max(
+        0.0,
+        std::min(1.0, probability)
+    );
 }
 
 /*
@@ -228,7 +239,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         L += beta * directLight;
 
-        BSDFSample bsdfSample =rec.material->sample(wo, rec.shadingNormal);
+        /*BSDFSample bsdfSample = rec.material->sample(wo, rec.shadingNormal);
 
         if (!bsdfSample.valid || bsdfSample.pdf <= 1e-12) {
             break;
@@ -237,6 +248,127 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         Vec3 wi = bsdfSample.wi.normalized();
         Color f = bsdfSample.f;
         double pdfBsdf = bsdfSample.pdf;
+        */
+        BSDFSample bsdfSample;
+
+        bool usedGuidedSampling = false;
+
+        Vec3 wi;
+        Color f;
+        double pdfBsdf = 0.0;
+        double pdfGuided = 0.0;
+        double pdfFinal = 0.0;
+
+        bool canUseGuiding = enableGuidedSampling && gGuidingTrainer.distribution().getTotalWeight() > 0.0;
+
+        double pGuiding = canUseGuiding ? guidingProbability : 0.0;
+
+        double pBsdf = 1.0 - pGuiding;
+
+        // -----------------------------------------------------
+        // 先判断材质是否可能是 delta
+        // 第一版做法：先让材质 sample 一次。
+        // 如果 sample 结果是 delta，就不使用 guiding。
+        // -----------------------------------------------------
+
+        BSDFSample initialSample =
+            rec.material->sample( wo, rec.shadingNormal);
+
+        if (!initialSample.valid || initialSample.pdf <= 1e-12) {
+            break;
+        }
+
+        if (initialSample.isDelta) {
+            bsdfSample = initialSample;
+
+            wi = bsdfSample.wi.normalized();
+            f = bsdfSample.f;
+            pdfBsdf = bsdfSample.pdf;
+            pdfGuided = 0.0;
+            pdfFinal = pdfBsdf;
+
+            usedGuidedSampling = false;
+        }
+        else {
+            // -------------------------------------------------
+            // non-delta 材质：可以在 BSDF 和 guiding 之间选策略
+            // -------------------------------------------------
+
+            bool chooseGuiding = canUseGuiding && randomDouble() < pGuiding;
+
+            if (chooseGuiding) {
+                DirectionalSample guidedSample = gGuidingTrainer.distribution().sample();
+
+                if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
+                    // guiding 无效时回退到最初的 BSDF sample
+                    bsdfSample = initialSample;
+
+                    wi = bsdfSample.wi.normalized();
+                    f = bsdfSample.f;
+                    pdfBsdf = rec.material->pdfValue( wo, rec.shadingNormal, wi);
+
+                    pdfGuided = gGuidingTrainer.distribution().pdf(wi);
+
+                    usedGuidedSampling = false;
+                }
+                else {
+                    wi = guidedSample.wi.normalized();
+
+                    double cosCheck = std::max(0.0, dot(rec.shadingNormal.normalized(), wi));
+
+                    if (cosCheck <= 0.0) {
+                        // guided 方向在表面下方，回退到 BSDF sample
+                        bsdfSample = initialSample;
+
+                        wi = bsdfSample.wi.normalized();
+                        f = bsdfSample.f;
+                        pdfBsdf =rec.material->pdfValue(wo, rec.shadingNormal,wi);
+
+                        pdfGuided = gGuidingTrainer.distribution().pdf(wi);
+
+                        usedGuidedSampling = false;
+                    }
+                    else {
+                        f = rec.material->eval(wo, rec.shadingNormal, wi);
+
+                        pdfBsdf =rec.material->pdfValue(wo, rec.shadingNormal, wi);
+
+                        pdfGuided = guidedSample.pdf;
+
+                        bsdfSample.wi = wi;
+                        bsdfSample.f = f;
+                        bsdfSample.pdf = pdfBsdf;
+                        bsdfSample.type = BSDFSampleType::Glossy;
+                        bsdfSample.isDelta = false;
+                        bsdfSample.valid = true;
+
+                        usedGuidedSampling = true;
+                    }
+                }
+            }
+            else {
+                bsdfSample = initialSample;
+
+                wi = bsdfSample.wi.normalized();
+                f = bsdfSample.f;
+
+                pdfBsdf =
+                    rec.material->pdfValue(wo, rec.shadingNormal, wi);
+
+                pdfGuided = canUseGuiding ? gGuidingTrainer.distribution().pdf(wi) : 0.0;
+
+                usedGuidedSampling = false;
+            }
+
+            pdfFinal = pBsdf * pdfBsdf + pGuiding * pdfGuided;
+
+            if (pdfFinal <= 1e-12) {
+                break;
+            }
+
+            bsdfSample.pdf = pdfFinal;
+        }
+
         double cosTheta = 1.0;
 
         if (!bsdfSample.isDelta) {
@@ -256,7 +388,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             vertex.wi = wi;
             vertex.throughput = beta;
             vertex.bsdfValue = f;
-            vertex.bsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
+            vertex.bsdfPdf = bsdfSample.isDelta ? 0.0 : pdfFinal;
             vertex.lightPdf = bsdfSample.isDelta ? 0.0 : scene.lightPdfSum(rec.p, wi);
             vertex.cosTheta = bsdfSample.isDelta ? 1.0 : cosTheta;
             vertex.depth = bounce;
@@ -275,7 +407,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             beta = beta * f;
         }
         else {
-            beta = beta * f * (cosTheta / pdfBsdf);
+            beta = beta * f * (cosTheta / pdfFinal);
         }
 
         if (bounce >= 3) {
@@ -290,7 +422,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
 
         previousWasBsdfSample = true;
         previousWasDelta = bsdfSample.isDelta;
-        previousBsdfPdf = bsdfSample.isDelta ? 0.0 : pdfBsdf;
+        previousBsdfPdf = bsdfSample.isDelta ? 0.0 : pdfFinal;
         previousPoint = rec.p;
         previousWi = wi;
 
