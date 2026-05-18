@@ -28,6 +28,7 @@
 #include "io/obj_loader.h"
 #include "io/image_loader.h"
 #include "image/float_image.h"
+#include "guiding/directional_histogram_debug.h"
 
 
 
@@ -77,6 +78,8 @@ namespace {
 }  // namespace
 
 int main() {
+    debugDirectionalHistogram();
+
     RenderConfig config;
     resolveConfigPaths(config);
 
@@ -406,7 +409,7 @@ int main() {
     Film film(imageWidth, imageHeight);
     Renderer renderer(samplesPerPixel, maxDepth);
 
-    renderer.setEnableGuidingRecord(true);
+    renderer.setEnableGuidingRecord(false);
 
     gStats.reset();
 
