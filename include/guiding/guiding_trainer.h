@@ -1,6 +1,6 @@
 #pragma once
 
-#include "guiding/directional_histogram.h"
+#include "guiding/local_hemisphere_histogram.h"
 #include "render/path_vertex.h"
 
 #include <cstdint>
@@ -26,11 +26,11 @@ public:
 
     void build();
 
-    DirectionalHistogram& distribution() {
+    LocalHemisphereHistogram& distribution() {
         return histogram;
     }
 
-    const DirectionalHistogram& distribution() const {
+    const LocalHemisphereHistogram& distribution() const {
         return histogram;
     }
 
@@ -41,7 +41,7 @@ public:
     void printStats() const;
 
 private:
-    DirectionalHistogram histogram;
+    LocalHemisphereHistogram histogram;
     GuidingTrainerStats trainerStats;
 
     double computeTrainingWeight(const PathVertex& vertex) const;

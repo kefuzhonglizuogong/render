@@ -1,4 +1,4 @@
-#include <memory>
+﻿#include <memory>
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -121,7 +121,7 @@ int main() {
 
             Color sun(0.0, 0.0, 0.0);
 
-            // 测试阶段故意放大太阳，确认环境图方向和采样正常
+            // 测试阶段故意放大太阳，确认环境图方向和采样是否正常
             if (dist2 < 0.0040) {
                 sun = Color(18.0, 16.0, 10.0);
             }
@@ -153,7 +153,7 @@ int main() {
     
     auto meshMat = std::make_shared<Lambertian>(Color(0.85, 0.65, 0.25));
 
-    //批量测试
+    // 批量测试
     auto smallRedMat = std::make_shared<Lambertian>(Color(0.8, 0.2, 0.2));
     auto smallGreenMat = std::make_shared<Lambertian>(Color(0.2, 0.8, 0.2));
     auto smallBlueMat = std::make_shared<Lambertian>(Color(0.2, 0.3, 0.9));
@@ -166,7 +166,7 @@ int main() {
     // y: -0.5 到 1.5
     // z: -1 到 -3
     //
-    // 相机在原点，看向 -z 方向。
+    // 相机在原点，朝向 -z 方向
 
     // 地面
     scene.add(std::make_shared<Quad>(
@@ -242,7 +242,7 @@ int main() {
         blueMat
     ));*/
 
-    //盒子中的蓝色三角形
+    // 盒子中的蓝色三角形
     /*scene.add(std::make_shared<Triangle>(
         Point3(0.15, -0.45, -2.55),
         Point3(0.85, -0.45, -2.55),
@@ -250,7 +250,7 @@ int main() {
         triangleMat
     ));*/
 
-    //批量生成小球
+    // 批量生成小球
     /*const int sphereCountX = 10;
     const int sphereCountZ = 8;
 
@@ -294,7 +294,7 @@ int main() {
         }
     }*/
 
-    //批量生成三角形
+    // 批量生成三角形
     /*const int triCountX = 20;
     const int triCountY = 10;
 
@@ -346,7 +346,7 @@ int main() {
 
     scene.add(objMesh);*/
 
-    //兔子
+    // 兔子
     /*auto bunnyMat = std::make_shared<Lambertian>(Color(0.85, 0.75, 0.65));
 
     auto bunny = loadOBJ(
@@ -361,7 +361,7 @@ int main() {
     );
     scene.add(bunny);
 
-    //GGXMetal球
+    // GGXMetal 球
     auto mirrorMat = std::make_shared<Mirror>(Color(0.95, 0.95, 0.95));
     scene.add(std::make_shared<Sphere>(
         Point3(0.65, -0.20, -2.15),
@@ -369,7 +369,7 @@ int main() {
         mirrorMat
     ));
 
-    //玻璃球
+    // 玻璃球
     auto glass = std::make_shared<Dielectric>(
         Color(1.0, 1.0, 1.0),
         1.5
@@ -396,7 +396,7 @@ int main() {
 
     buildMaterialTestScene(scene);
 
-    //十万次光源选择测试
+    // 十万次光源选择测试
     //debugLightSelection(scene, 100000);
 
     // 所有物体添加完成后构建 BVH
@@ -407,12 +407,187 @@ int main() {
 
     Camera camera(aspectRatio);
 
-    // =====================================================
-    // 训练阶段：
-    // 先用普通路径追踪采样，记录 PathVertex，
-    // 训练全局方向直方图，但不保存这一阶段图像。
-    // =====================================================
-    Film trainingFilm(imageWidth, imageHeight);
+    auto ensureOutputDirectory = [](const std::string& filename) {
+        const std::filesystem::path outputPath(filename);
+        if (!outputPath.parent_path().empty()) {
+            std::filesystem::create_directories(outputPath.parent_path());
+        }
+    };
+
+    // 对比模式：依次运行 baseline / training / guided 三个阶段。
+    if (config.runGuidingComparison) {
+        std::cout << "\n=== Baseline Render ===\n";
+
+        // Baseline：不使用 guiding 的普通路径追踪。
+        Film baselineFilm(imageWidth, imageHeight);
+        Renderer baselineRenderer(samplesPerPixel, maxDepth);
+        baselineRenderer.setEnableGuidingRecord(false);
+        baselineRenderer.setEnableGuidedSampling(false);
+
+        gStats.reset();
+
+        auto baselineStart = std::chrono::high_resolution_clock::now();
+        baselineRenderer.render(scene, camera, baselineFilm);
+        auto baselineEnd = std::chrono::high_resolution_clock::now();
+
+        ensureOutputDirectory(config.baselineOutputPath);
+        baselineFilm.savePPM(config.baselineOutputPath, samplesPerPixel);
+
+        double baselineTime =
+            std::chrono::duration<double>(baselineEnd - baselineStart).count();
+
+        std::cout << "Baseline render finished: " << config.baselineOutputPath << "\n";
+        std::cout << "Baseline time seconds: " << baselineTime << "\n";
+
+        std::cout << "\n=== Guiding Training Pass ===\n";
+
+        // Training：收集 guiding 数据，但训练阶段本身不使用 guiding 采样。
+        Film trainingFilm(imageWidth, imageHeight);
+        Renderer trainingRenderer(config.trainingSamplesPerPixel, maxDepth);
+        trainingRenderer.setEnableGuidingRecord(true);
+        trainingRenderer.setEnableGuidedSampling(false);
+
+        gStats.reset();
+
+        auto trainingStart = std::chrono::high_resolution_clock::now();
+        trainingRenderer.render(scene, camera, trainingFilm);
+        auto trainingEnd = std::chrono::high_resolution_clock::now();
+
+        double trainingTime =
+            std::chrono::duration<double>(trainingEnd - trainingStart).count();
+
+        std::cout << "Training pass finished.\n";
+        std::cout << "Training time seconds: " << trainingTime << "\n";
+
+        std::cout << "\n=== Guided Render ===\n";
+
+        // Guided：复用训练好的分布生成最终输出。
+        Film guidedFilm(imageWidth, imageHeight);
+        Renderer guidedRenderer(samplesPerPixel, maxDepth);
+        guidedRenderer.setEnableGuidingRecord(false);
+        guidedRenderer.setEnableGuidedSampling(true);
+        guidedRenderer.setGuidingProbability(config.guidingProbability);
+
+        gStats.reset();
+
+        auto guidedStart = std::chrono::high_resolution_clock::now();
+        guidedRenderer.render(scene, camera, guidedFilm);
+        auto guidedEnd = std::chrono::high_resolution_clock::now();
+
+        ensureOutputDirectory(config.guidedOutputPath);
+        guidedFilm.savePPM(config.guidedOutputPath, samplesPerPixel);
+
+        double guidedTime =
+            std::chrono::duration<double>(guidedEnd - guidedStart).count();
+
+        std::cout << "Guided render finished: " << config.guidedOutputPath << "\n";
+        std::cout << "Guided render time seconds: " << guidedTime << "\n";
+
+        std::cout << "\n=== Render Stats ===\n";
+        std::cout << "Render time seconds:       " << guidedTime << "\n";
+        std::cout << "Scene intersect calls:     " << gStats.sceneIntersectCalls << "\n";
+        std::cout << "Guiding vertices:          " << gStats.guidingVertices << "\n";
+        std::cout << "BVH node intersect calls:  " << gStats.bvhNodeIntersectCalls << "\n";
+        std::cout << "AABB hit calls:            " << gStats.aabbHitCalls << "\n";
+        std::cout << "Sphere intersect calls:    " << gStats.sphereIntersectCalls << "\n";
+        std::cout << "Quad intersect calls:      " << gStats.quadIntersectCalls << "\n";
+        std::cout << "Triangle intersect calls:  " << gStats.triangleIntersectCalls << "\n";
+
+        std::uint64_t primitiveCalls =
+            gStats.sphereIntersectCalls + gStats.quadIntersectCalls + gStats.triangleIntersectCalls;
+
+        std::cout << "Mesh intersect calls:      " << gStats.meshIntersectCalls << "\n";
+        std::cout << "Primitive intersect calls: " << primitiveCalls << "\n";
+        std::cout << "====================\n";
+
+        std::cout << "\n=== Guided Sampling Stats ===\n";
+        std::cout << "BSDF strategy samples:        " << gStats.bsdfStrategySamples << "\n";
+        std::cout << "Guided strategy samples:      " << gStats.guidedStrategySamples << "\n";
+        std::cout << "Guided fallback samples:      " << gStats.guidedFallbackSamples << "\n";
+        std::cout << "Guided invalid samples:       " << gStats.guidedInvalidSamples << "\n";
+        std::cout << "Guided below-surface samples: " << gStats.guidedBelowSurfaceSamples << "\n";
+        std::cout << "Guided pdf zero samples:      " << gStats.guidedPdfZeroSamples << "\n";
+        std::cout << "Guided pdf bad samples:       " << gStats.guidedPdfBadSamples << "\n";
+        std::cout << "Final pdf zero samples:       " << gStats.finalPdfZeroSamples << "\n";
+        std::cout << "Final pdf bad samples:        " << gStats.finalPdfBadSamples << "\n";
+
+        std::uint64_t nonDeltaSamples =
+            gStats.bsdfStrategySamples + gStats.guidedStrategySamples;
+
+        if (nonDeltaSamples > 0) {
+            std::cout << "Guided attempt ratio:         "
+                      << static_cast<double>(gStats.guidedStrategySamples) / static_cast<double>(nonDeltaSamples)
+                      << "\n";
+        }
+
+        if (gStats.guidedStrategySamples > 0) {
+            std::cout << "Guided fallback ratio:        "
+                      << static_cast<double>(gStats.guidedFallbackSamples) / static_cast<double>(gStats.guidedStrategySamples)
+                      << "\n";
+        }
+
+        std::cout << "Min BSDF pdf:                 " << gStats.minBsdfPdf << "\n";
+        std::cout << "Max BSDF pdf:                 " << gStats.maxBsdfPdf << "\n";
+        std::cout << "Min guided pdf:               " << gStats.minGuidedPdf << "\n";
+        std::cout << "Max guided pdf:               " << gStats.maxGuidedPdf << "\n";
+        std::cout << "Min final pdf:                " << gStats.minFinalPdf << "\n";
+        std::cout << "Max final pdf:                " << gStats.maxFinalPdf << "\n";
+        std::cout << "=============================\n";
+
+        std::cout << "\n=== Guiding Comparison Summary ===\n";
+        std::cout << "Baseline spp:       " << samplesPerPixel << "\n";
+        std::cout << "Training spp:       " << config.trainingSamplesPerPixel << "\n";
+        std::cout << "Guided spp:         " << samplesPerPixel << "\n";
+        std::cout << "Max depth:          " << maxDepth << "\n";
+        std::cout << "Guiding probability:" << config.guidingProbability << "\n";
+        std::cout << "Baseline time:      " << baselineTime << " s\n";
+        std::cout << "Training time:      " << trainingTime << " s\n";
+        std::cout << "Guided time:        " << guidedTime << " s\n";
+        std::cout << "Total guided cost:  " << trainingTime + guidedTime << " s\n";
+        std::cout << "===============================\n";
+
+        return 0;
+    }
+
+    // 普通模式：不做 comparison，只渲染一张图。
+    Film film(imageWidth, imageHeight);
+    Renderer renderer(samplesPerPixel, maxDepth);
+    renderer.setEnableGuidingRecord(false);
+    renderer.setEnableGuidedSampling(false);
+
+    gStats.reset();
+
+    auto start = std::chrono::high_resolution_clock::now();
+    renderer.render(scene, camera, film);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    ensureOutputDirectory(config.outputPath);
+    film.savePPM(config.outputPath, samplesPerPixel);
+
+    std::cout << "Render finished: " << config.outputPath << "\n";
+    std::cout << "Render time seconds: "
+              << std::chrono::duration<double>(end - start).count() << "\n";
+
+    return 0;
+
+    // 下面保留旧的两阶段 guiding 入口，仅用于参考。
+    /*
+    =====================================================
+    旧的 training + guided 渲染入口
+    -----------------------------------------------------
+    这是旧的两阶段渲染流程：
+    1. Training Pass
+    2. Guided Render Pass
+
+    它已经被上面的新流程替代：
+    - Guiding comparison：baseline -> training -> guided
+    - 普通单图渲染 fallback
+
+    这里保留这段旧代码仅用于参考。
+    当前不会执行，因为上面的新流程在两条路径上都已经 return。
+    =====================================================
+    */
+    /* Film trainingFilm(imageWidth, imageHeight);
     Renderer trainingRenderer(samplesPerPixel, maxDepth);
 
     trainingRenderer.setEnableGuidingRecord(true);
@@ -474,73 +649,52 @@ int main() {
     std::cout << "BSDF strategy samples:        "
               << gStats.bsdfStrategySamples << "\n";
 
-    std::cout << "Guided strategy samples:      "
-              << gStats.guidedStrategySamples << "\n";
+    std::cout << "Guided strategy samples:      " << gStats.guidedStrategySamples << "\n";
 
-    std::cout << "Guided fallback samples:      "
-              << gStats.guidedFallbackSamples << "\n";
+    std::cout << "Guided fallback samples:      " << gStats.guidedFallbackSamples << "\n";
 
-    std::cout << "Guided invalid samples:       "
-              << gStats.guidedInvalidSamples << "\n";
+    std::cout << "Guided invalid samples:       " << gStats.guidedInvalidSamples << "\n";
 
-    std::cout << "Guided below-surface samples: "
-              << gStats.guidedBelowSurfaceSamples << "\n";
+    std::cout << "Guided below-surface samples: " << gStats.guidedBelowSurfaceSamples << "\n";
 
-    std::cout << "Guided pdf zero samples:      "
-              << gStats.guidedPdfZeroSamples << "\n";
+    std::cout << "Guided pdf zero samples:      " << gStats.guidedPdfZeroSamples << "\n";
 
-    std::cout << "Guided pdf bad samples:       "
-              << gStats.guidedPdfBadSamples << "\n";
+    std::cout << "Guided pdf bad samples:       " << gStats.guidedPdfBadSamples << "\n";
 
-    std::cout << "Final pdf zero samples:       "
-              << gStats.finalPdfZeroSamples << "\n";
+    std::cout << "Final pdf zero samples:       " << gStats.finalPdfZeroSamples << "\n";
 
-    std::cout << "Final pdf bad samples:        "
-              << gStats.finalPdfBadSamples << "\n";
+    std::cout << "Final pdf bad samples:        " << gStats.finalPdfBadSamples << "\n";
 
-    std::uint64_t nonDeltaSamples =
-        gStats.bsdfStrategySamples +
-        gStats.guidedStrategySamples;
+    std::uint64_t nonDeltaSamples = gStats.bsdfStrategySamples + gStats.guidedStrategySamples;
 
     if (nonDeltaSamples > 0) {
-        std::cout << "Guided attempt ratio:         "
-                  << static_cast<double>(gStats.guidedStrategySamples) /
-                  static_cast<double>(nonDeltaSamples)
-                  << "\n";
+        std::cout << "Guided attempt ratio:         " << static_cast<double>(gStats.guidedStrategySamples) / static_cast<double>(nonDeltaSamples) << "\n";
     }
 
     if (gStats.guidedStrategySamples > 0) {
-        std::cout << "Guided fallback ratio:        "
-                  << static_cast<double>(gStats.guidedFallbackSamples) /
-                  static_cast<double>(gStats.guidedStrategySamples)
-                  << "\n";
+        std::cout << "Guided fallback ratio:        " << static_cast<double>(gStats.guidedFallbackSamples) / static_cast<double>(gStats.guidedStrategySamples) << "\n";
     }
 
-    std::cout << "Min BSDF pdf:                 "
-              << gStats.minBsdfPdf << "\n";
+    std::cout << "Min BSDF pdf:                 " << gStats.minBsdfPdf << "\n";
 
-    std::cout << "Max BSDF pdf:                 "
-              << gStats.maxBsdfPdf << "\n";
+    std::cout << "Max BSDF pdf:                 " << gStats.maxBsdfPdf << "\n";
 
-    std::cout << "Min guided pdf:               "
-              << gStats.minGuidedPdf << "\n";
+    std::cout << "Min guided pdf:               " << gStats.minGuidedPdf << "\n";
 
-    std::cout << "Max guided pdf:               "
-              << gStats.maxGuidedPdf << "\n";
+    std::cout << "Max guided pdf:               " << gStats.maxGuidedPdf << "\n";
 
-    std::cout << "Min final pdf:                "
-              << gStats.minFinalPdf << "\n";
+    std::cout << "Min final pdf:                " << gStats.minFinalPdf << "\n";
 
-    std::cout << "Max final pdf:                "
-              << gStats.maxFinalPdf << "\n";
+    std::cout << "Max final pdf:                " << gStats.maxFinalPdf << "\n";
 
     std::cout << "=============================\n";
 
-    return 0;
+    return 0; */
 }
 
 /*
-* 现在的场景里，有 6 个 Quad（组成了 Cornell Box 的地板、天花板和四面墙），1 个 Sphere（球），1 个 Triangle（三角形）。
+* 当前场景里有 6 个 Quad（组成 Cornell Box 的地板、天花板和四面墙），
+  1 个 Sphere（球），1 个 Triangle（三角形）。
 ****************** 关闭 BVH ******************
 Rendering line 225 / 225
 Render finished: D:/Program/Project/mini_renderer\output\render_20260503_183412.ppm
@@ -568,18 +722,20 @@ Quad intersect calls:      217500773
 Triangle intersect calls:  24626507
 Primitive intersect calls: 267982214
 ====================
-核心洞察：为什么大概率渲染时间没变快（甚至变慢了）？
-虽然成功跳过了 1.5 亿次图元计算，但你付出了一笔极其高昂的过路费：
+核心观察：为什么大概率渲染时间没有变快，甚至可能变慢？
+虽然成功跳过了 1.5 亿次图元计算，但也付出了很高的遍历代价：
 
-新增开销： 多出了 2.96 亿次 AABB hit calls（安检门测试）！
+新增开销：多出了 2.96 亿次 AABB hit calls（包围盒测试）。
 
-这就是经典悖论：
-当场景里只有 8 个物体时，直接暴力循环算 8 次数学方程的代价，其实远远小于去遍历一棵 BVH 树、访问堆内存指针、以及算几十次 AABB 长方体求交的代价。
-这就好比，你为了管理桌子上的 8 支笔，专门买了一个带索引目录的大型档案柜。每次找笔都要先查目录、开柜子，反而不如直接在桌子上扫一眼来得快。
+这就是经典结论：
+当场景里只有 8 个物体时，直接暴力循环求交 8 次的代价，
+其实远小于遍历一棵 BVH 树、访问堆内存指针，以及做几十次 AABB 求交的代价。
+这就好比为了管理桌子上的 8 支笔，专门买了一个带索引目录的大型档案柜。
+每次找笔都要先查目录、开柜子，反而不如直接在桌子上扫一眼更快。
 */
 
 /*
-大量小球(80个)
+大量小球（80 个）
 ****************** 关闭 BVH ******************
 Rendering line 168 / 168
 === Render Stats ===
@@ -608,7 +764,7 @@ Primitive intersect calls: 14353778
 */
 
 /*
-* 200个三角形
+* 200 个三角形
 ****************** 关闭 BVH ******************
 === Render Stats ===
 Render time seconds:       44.8837
@@ -790,4 +946,134 @@ Triangle intersect calls:  3585824
 Mesh intersect calls:      4212039
 Primitive intersect calls: 31817917
 ====================
+*/
+
+/*
+Loaded PPM image: D:/Program/Project/mini_renderer\models/test_env.ppm
+Resolution: 8 x 4
+Intensity scale: 8
+LatLongEnvironmentLight distribution built.
+Resolution: 8 x 4
+Total weight: 16.4792
+
+=== OBJ Normalize Info ===
+Original bbox min: -0.0943804, 0.0333099, -0.0616792
+Original bbox max: 0.0607788, 0.186996, 0.0587146
+Original center: -0.0168008, 0.110153, -0.00148226
+Scale factor: 5.47824
+Loaded OBJ: D:/Program/Project/mini_renderer/models/bunny.obj
+Vertices: 2503
+Vertex normals: 0
+Triangles: 4968
+
+=== Baseline Render ===
+Rendering line 225 / 225
+Baseline render finished: output/baseline.ppm
+Baseline time seconds: 98.5362
+
+=== Guiding Training Pass ===
+Rendering line 225 / 225
+
+=== Guiding Debug Stats ===
+Total vertices:              1190833
+Diffuse vertices:            798389
+Glossy vertices:             43318
+Delta reflection vertices:   60124
+Delta transmission vertices: 289002
+None vertices:               0
+Delta vertices:              349126
+Non-delta vertices:          841707
+Zero bsdf pdf vertices:      349126
+Zero light pdf vertices:     349126
+Bad number vertices:         0
+Min bsdf pdf:                0.000195432
+Max bsdf pdf:                352.744
+Avg bsdf pdf:                0.868016
+Min light pdf:               0.00433554
+Max light pdf:               868.375
+Avg light pdf:               0.111518
+Min cos theta:               0.000603742
+Max cos theta:               1
+Avg cos theta:               0.764403
+Max throughput component:    1.50734
+Avg throughput component:    0.971588
+
+Depth counts:
+  depth 0: 669772
+  depth 1: 174477
+  depth 2: 92405
+  depth 3: 63735
+  depth 4: 35512
+  depth 5: 30067
+  depth 6: 26448
+  depth 7: 23717
+  depth 8: 21395
+  depth 9: 19423
+  depth 10: 17678
+  depth 11: 16204
+===========================
+
+=== Guiding Trainer Stats ===
+Received vertices:       1190833
+Trained vertices:        841707
+Skipped delta vertices:  349126
+Skipped invalid vertices:0
+Skipped bad weights:     0
+Total training weight:   613581
+Max training weight:     1.5073
+Histogram total weight:  613581
+Avg training weight:     0.728972
+=============================
+Training pass finished.
+Training time seconds: 14.4051
+
+=== Guided Render ===
+Rendering line 225 / 225
+Guided render finished: output/guided.ppm
+Guided render time seconds: 100.722
+
+=== Render Stats ===
+Render time seconds:       100.722
+Scene intersect calls:     32469611
+Guiding vertices:          0
+BVH node intersect calls:  233786272
+AABB hit calls:            233786272
+Sphere intersect calls:    17279328
+Quad intersect calls:      65728021
+Triangle intersect calls:  6672018
+Mesh intersect calls:      9746099
+Primitive intersect calls: 89679367
+====================
+
+=== Guided Sampling Stats ===
+BSDF strategy samples:        3380782
+Guided strategy samples:      3378050
+Guided fallback samples:      0
+Guided invalid samples:       0
+Guided below-surface samples: 0
+Guided pdf zero samples:      0
+Guided pdf bad samples:       0
+Final pdf zero samples:       0
+Final pdf bad samples:        0
+Guided attempt ratio:         0.499798
+Guided fallback ratio:        0
+Min BSDF pdf:                 5.98856e-07
+Max BSDF pdf:                 469.795
+Min guided pdf:               0.013348
+Max guided pdf:               0.356823
+Min final pdf:                0.00667852
+Max final pdf:                234.906
+=============================
+
+=== Guiding Comparison Summary ===
+Baseline spp:       200
+Training spp:       25
+Guided spp:         200
+Max depth:          12
+Guiding probability:0.5
+Baseline time:      98.5362 s
+Training time:      14.4051 s
+Guided time:        100.722 s
+Total guided cost:  115.127 s
+===============================
 */

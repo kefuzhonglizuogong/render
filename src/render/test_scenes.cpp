@@ -15,6 +15,7 @@ void buildMaterialTestScene(Scene& scene) {
 
     auto groundMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
     auto redLambert = std::make_shared<Lambertian>(Color(0.75, 0.20, 0.18));
+    auto blueLambert = std::make_shared<Lambertian>(Color(0.18, 0.28, 0.80));
     auto mirrorMat = std::make_shared<Mirror>(Color(0.95, 0.95, 0.95));
     auto goldMetal = std::make_shared<GGXMetal>(Color(1.0, 0.72, 0.25), 0.25);
     auto glassMat = std::make_shared<Dielectric>(Color(1.0, 1.0, 1.0), 1.5);
@@ -29,6 +30,17 @@ void buildMaterialTestScene(Scene& scene) {
         Vec3(6.0, 0.0, 0.0),
         Vec3(0.0, 0.0, -5.0),
         groundMat
+    ));
+    // =====================================================
+    // Back diffuse wall / card
+    // =====================================================
+    // 不是封闭盒子，只放一个远处背景板，方便看间接光和阴影
+
+    scene.add(std::make_shared<Quad>(
+        Point3(-3.0, -0.5, -4.2),
+        Vec3(6.0, 0.0, 0.0),
+        Vec3(0.0, 2.8, 0.0),
+        blueLambert
     ));
 
     // =====================================================
@@ -78,7 +90,7 @@ void buildMaterialTestScene(Scene& scene) {
     auto bunny = loadOBJ(
         "D:/Program/Project/mini_renderer/models/bunny.obj",
         bunnyMat,
-        0.75,
+        0.85,
         Point3(0.0, 0.0, -4.0)
     );
 

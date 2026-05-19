@@ -1,4 +1,5 @@
 #include "render/renderer.h"
+#include "core/frame.h"
 #include "core/stats.h"
 #include "material/material.h"
 #include "core/random.h"
@@ -6,7 +7,7 @@
 #include "material/bsdf_sample.h"
 #include "render/guiding_debug.h"
 #include "guiding/guiding_trainer.h"
-#include "guiding/directional_histogram.h"
+#include "guiding/local_hemisphere_histogram.h"
 
 
 #include <algorithm>
@@ -339,7 +340,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             if (chooseGuiding) {
                 ++gStats.guidedStrategySamples;
 
-                DirectionalSample guidedSample = gGuidingTrainer.distribution().sample();
+                LocalGuidedSample guidedSample =
+                    gGuidingTrainer.distribution().sample();
 
                 if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
                     // guiding 无效时回退到最初的 BSDF sample
@@ -352,12 +354,26 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     f = bsdfSample.f;
                     pdfBsdf = rec.material->pdfValue( wo, rec.shadingNormal, wi);
 
-                    pdfGuided = gGuidingTrainer.distribution().pdf(wi);
+                    Frame frame(rec.shadingNormal);
+
+                    Vec3 localWi =
+                        frame.toLocal(wi).normalized();
+
+                    pdfGuided =
+                        gGuidingTrainer.distribution().pdf(
+                            localWi
+                        );
 
                     usedGuidedSampling = false;
                 }
                 else {
-                    wi = guidedSample.wi.normalized();
+                    Frame frame(rec.shadingNormal);
+
+                    Vec3 localWi =
+                        guidedSample.localWi.normalized();
+
+                    wi =
+                        frame.toWorld(localWi).normalized();
 
                     double cosCheck = std::max(0.0, dot(rec.shadingNormal.normalized(), wi));
 
@@ -372,7 +388,13 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         f = bsdfSample.f;
                         pdfBsdf =rec.material->pdfValue(wo, rec.shadingNormal,wi);
 
-                        pdfGuided = gGuidingTrainer.distribution().pdf(wi);
+                        Vec3 fallbackLocalWi =
+                            frame.toLocal(wi).normalized();
+
+                        pdfGuided =
+                            gGuidingTrainer.distribution().pdf(
+                                fallbackLocalWi
+                            );
 
                         usedGuidedSampling = false;
                     }
@@ -404,7 +426,19 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 pdfBsdf =
                     rec.material->pdfValue(wo, rec.shadingNormal, wi);
 
-                pdfGuided = canUseGuiding ? gGuidingTrainer.distribution().pdf(wi) : 0.0;
+                if (canUseGuiding) {
+                    Frame frame(rec.shadingNormal);
+
+                    Vec3 localWi =
+                        frame.toLocal(wi).normalized();
+
+                    pdfGuided =
+                        gGuidingTrainer.distribution().pdf(
+                            localWi
+                        );
+                } else {
+                    pdfGuided = 0.0;
+                }
 
                 usedGuidedSampling = false;
             }

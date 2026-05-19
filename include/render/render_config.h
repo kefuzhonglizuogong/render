@@ -23,11 +23,9 @@ struct RenderConfig {
     // Assets
     // =====================================================
 
-    std::string objPath =
-        "models/bunny.obj";
+    std::string objPath =  "models/bunny.obj";
 
-    std::string environmentPath =
-        "models/test_env.ppm";
+    std::string environmentPath = "models/test_env.ppm";
 
     std::string outputPath;
 
@@ -42,6 +40,16 @@ struct RenderConfig {
     // =====================================================
 
     double meshTargetSize = 0.65;
+
+    // =====================================================
+    // Guiding comparison
+    // =====================================================
+
+    bool runGuidingComparison = true;
+    std::string baselineOutputPath = "output/baseline.ppm";
+    std::string guidedOutputPath = "output/guided.ppm";
+    int trainingSamplesPerPixel = 25;
+    double guidingProbability = 0.5;
 
     double meshCenterX = -0.3;
     double meshCenterY = 0.0;
