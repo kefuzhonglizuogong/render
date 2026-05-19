@@ -46,8 +46,8 @@ struct RenderConfig {
     // =====================================================
 
     bool runGuidingComparison = true;
-    std::string baselineOutputPath = "output/baseline.ppm";
-    std::string guidedOutputPath = "output/guided.ppm";
+    std::string baselineOutputPath;
+    std::string guidedOutputPath;
     int trainingSamplesPerPixel = 25;
     double guidingProbability = 0.5;
 

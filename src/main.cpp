@@ -45,10 +45,7 @@ namespace {
         return std::filesystem::path(PROJECT_ROOT_DIR) / fsPath;
     }
 
-    std::filesystem::path makeOutputPath() {
-        const std::filesystem::path outputDir = std::filesystem::path(PROJECT_ROOT_DIR) / "output";
-        std::filesystem::create_directories(outputDir);
-
+    std::string makeOutputTimestamp() {
         const auto now = std::chrono::system_clock::now();
         const std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
         std::tm localTime{};
@@ -58,8 +55,23 @@ namespace {
         localtime_r(&nowTime, &localTime);
 #endif
 
+        std::ostringstream timestampBuilder;
+        timestampBuilder << std::put_time(&localTime, "%Y%m%d_%H%M%S");
+        return timestampBuilder.str();
+    }
+
+    std::filesystem::path makeOutputPath(const std::string& suffix = "") {
+        const std::filesystem::path outputDir = std::filesystem::path(PROJECT_ROOT_DIR) / "output";
+        std::filesystem::create_directories(outputDir);
+
         std::ostringstream filenameBuilder;
-        filenameBuilder << "render_" << std::put_time(&localTime, "%Y%m%d_%H%M%S") << ".ppm";
+        filenameBuilder << "render_" << makeOutputTimestamp();
+
+        if (!suffix.empty()) {
+            filenameBuilder << "_" << suffix;
+        }
+
+        filenameBuilder << ".ppm";
         return outputDir / filenameBuilder.str();
     }
 
@@ -72,6 +84,26 @@ namespace {
         }
         else {
             config.outputPath = projectPath(config.outputPath).string();
+        }
+
+        if (config.runGuidingComparison) {
+            const std::string timestamp = makeOutputTimestamp();
+            const std::filesystem::path outputDir = std::filesystem::path(PROJECT_ROOT_DIR) / "output";
+            std::filesystem::create_directories(outputDir);
+
+            if (config.baselineOutputPath.empty()) {
+                config.baselineOutputPath = (outputDir / ("render_" + timestamp + "_baseline.ppm")).string();
+            }
+            else {
+                config.baselineOutputPath = projectPath(config.baselineOutputPath).string();
+            }
+
+            if (config.guidedOutputPath.empty()) {
+                config.guidedOutputPath = (outputDir / ("render_" + timestamp + "_guided.ppm")).string();
+            }
+            else {
+                config.guidedOutputPath = projectPath(config.guidedOutputPath).string();
+            }
         }
     }
 
@@ -477,8 +509,7 @@ int main() {
         ensureOutputDirectory(config.guidedOutputPath);
         guidedFilm.savePPM(config.guidedOutputPath, samplesPerPixel);
 
-        double guidedTime =
-            std::chrono::duration<double>(guidedEnd - guidedStart).count();
+        double guidedTime = std::chrono::duration<double>(guidedEnd - guidedStart).count();
 
         std::cout << "Guided render finished: " << config.guidedOutputPath << "\n";
         std::cout << "Guided render time seconds: " << guidedTime << "\n";
@@ -565,8 +596,7 @@ int main() {
     film.savePPM(config.outputPath, samplesPerPixel);
 
     std::cout << "Render finished: " << config.outputPath << "\n";
-    std::cout << "Render time seconds: "
-              << std::chrono::duration<double>(end - start).count() << "\n";
+    std::cout << "Render time seconds: " << std::chrono::duration<double>(end - start).count() << "\n";
 
     return 0;
 
