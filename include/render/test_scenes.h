@@ -2,4 +2,4 @@
 
 #include "render/scene.h"
 
-void buildMaterialTestScene(Scene& scene);
+void buildTestScene(Scene& scene);

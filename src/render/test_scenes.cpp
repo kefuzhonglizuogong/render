@@ -8,6 +8,135 @@
 
 #include <memory>
 
+/*
+1. 主要使用 Lambertian 材质
+2. 有地面、背墙、侧墙，形成间接光环境
+3. 小面积强光源放在上方偏侧位置
+4. 加几个遮挡物，让直接采样和 BSDF 采样更有挑战
+5. 暂时不放 glass / mirror / GGX，避免干扰判断
+*/
+void buildTestScene(Scene& scene) {
+    // =====================================================
+    // Materials
+    // =====================================================
+
+    auto groundMat = std::make_shared<Lambertian>(
+        Color(0.75, 0.75, 0.75)
+    );
+
+    auto wallMat = std::make_shared<Lambertian>(
+        Color(0.72, 0.72, 0.72)
+    );
+
+    auto redMat = std::make_shared<Lambertian>(
+        Color(0.75, 0.20, 0.18)
+    );
+
+    auto blueMat = std::make_shared<Lambertian>(
+        Color(0.18, 0.28, 0.80)
+    );
+
+    auto greenMat = std::make_shared<Lambertian>(
+        Color(0.20, 0.65, 0.25)
+    );
+
+    auto blockerMat = std::make_shared<Lambertian>(
+        Color(0.55, 0.55, 0.55)
+    );
+
+    // =====================================================
+    // Cornell-box-like open scene
+    // =====================================================
+
+    // Ground
+    scene.add(std::make_shared<Quad>(
+        Point3(-3.0, -0.5, -1.0),
+        Vec3(6.0, 0.0, 0.0),
+        Vec3(0.0, 0.0, -5.5),
+        groundMat
+    ));
+
+    // Back wall
+    scene.add(std::make_shared<Quad>(
+        Point3(-3.0, -0.5, -5.5),
+        Vec3(6.0, 0.0, 0.0),
+        Vec3(0.0, 3.0, 0.0),
+        wallMat
+    ));
+
+    // Left wall
+    scene.add(std::make_shared<Quad>(
+        Point3(-3.0, -0.5, -5.5),
+        Vec3(0.0, 0.0, 5.5),
+        Vec3(0.0, 3.0, 0.0),
+        redMat
+    ));
+
+    // Right wall
+    scene.add(std::make_shared<Quad>(
+        Point3(3.0, -0.5, -1.0),
+        Vec3(0.0, 0.0, -5.5),
+        Vec3(0.0, 3.0, 0.0),
+        blueMat
+    ));
+
+    // =====================================================
+    // Diffuse objects
+    // =====================================================
+
+    scene.add(std::make_shared<Sphere>(
+        Point3(-1.1, -0.05, -3.0),
+        0.45,
+        greenMat
+    ));
+
+    scene.add(std::make_shared<Sphere>(
+        Point3(1.0, -0.15, -3.4),
+        0.35,
+        wallMat
+    ));
+
+    // A blocker near the light path.
+    // This creates more structured indirect illumination.
+    scene.add(std::make_shared<Sphere>(
+        Point3(0.0, 0.75, -3.0),
+        0.35,
+        blockerMat
+    ));
+
+    scene.add(std::make_shared<Quad>(
+        Point3(-0.25, -0.5, -2.6),
+        Vec3(0.5, 0.0, 0.0),
+        Vec3(0.0, 1.6, 0.0),
+        blockerMat
+    ));
+
+    // =====================================================
+    // Small bright area light
+    // =====================================================
+
+    Color lightEmission(60.0, 60.0, 60.0);
+    auto lightMat = std::make_shared<DiffuseLight>(lightEmission);
+
+    Point3 lightCorner(-0.35, 1.95, -3.8);
+    Vec3 lightU(0.35, 0.0, 0.0);
+    Vec3 lightV(0.0, 0.0, 0.35);
+
+    scene.add(std::make_shared<Quad>(
+        lightCorner,
+        lightU,
+        lightV,
+        lightMat
+    ));
+
+    scene.addLight(std::make_shared<QuadLight>(
+        lightCorner,
+        lightU,
+        lightV,
+        lightEmission
+    ));
+}
+/*
 void buildMaterialTestScene(Scene& scene) {
     // =====================================================
     // Materials
@@ -119,3 +248,4 @@ void buildMaterialTestScene(Scene& scene) {
         lightEmission
     ));
 }
+*/

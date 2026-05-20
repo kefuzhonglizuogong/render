@@ -426,7 +426,7 @@ int main() {
     ));*/
 
 
-    buildMaterialTestScene(scene);
+    buildTestScene(scene);
 
     // 十万次光源选择测试
     //debugLightSelection(scene, 100000);
