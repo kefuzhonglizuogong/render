@@ -1,14 +1,15 @@
-#pragma once
+ï»¿#pragma once
 
 #include "render/scene.h"
 #include "render/camera.h"
 #include "render/film.h"
 #include "render/guiding_record.h"
+#include "guiding/guiding_mode.h"
 
 class Renderer {
 public:
-    int samplesPerPixel;//Ã¿¸öÏñËØ²ÉÑù¶àÉÙ´Î
-    int maxDepth;//×î¶àÔÊĞí·´µ¯¶àÉÙ´Î
+    int samplesPerPixel;//æ¯ä¸ªåƒç´ é‡‡æ ·å¤šå°‘æ¬¡
+    int maxDepth;//æœ€å¤šå…è®¸åå¼¹å¤šå°‘æ¬¡
 
     bool enableGuidingRecord = false;
     bool enableGuidedSampling = false;
@@ -23,6 +24,10 @@ public:
 
     void setGuidingProbability(double probability);
 
+    void setGuidingMode(GuidingMode mode);
+
     Color trace(const Ray& ray, const Scene& scene, int depth) const;
     void render(const Scene& scene, const Camera& camera, Film& film) const;
+
+    GuidingMode guidingMode = GuidingMode::Spatial;
 };

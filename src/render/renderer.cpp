@@ -1,4 +1,4 @@
-#include "render/renderer.h"
+﻿#include "render/renderer.h"
 #include "core/frame.h"
 #include "core/stats.h"
 #include "material/material.h"
@@ -154,7 +154,11 @@ namespace {
 
     constexpr int kMinSpatialGuidingSamplesPerCell = 16;
 
-    bool useSpatialGuidingAt(const Point3& p) {
+    bool useSpatialGuidingAt(const Point3& p, GuidingMode mode) {
+        if (mode != GuidingMode::Spatial) {
+            return false;
+        }
+
         const SpatialGuidingCell* cell = gGuidingTrainer.spatialDistribution().cellAt(p);
 
         if (!cell) {
@@ -164,24 +168,24 @@ namespace {
         return cell->isReady(kMinSpatialGuidingSamplesPerCell);
     }
 
-    bool canUseGuidingAt(const Point3& p) {
-        if (useSpatialGuidingAt(p)) {
+    bool canUseGuidingAt(const Point3& p, GuidingMode mode) {
+        if (useSpatialGuidingAt(p, mode)) {
             return true;
         }
 
         return gGuidingTrainer.distribution().getTotalWeight() > 0.0;
     }
 
-    LocalGuidedSample sampleGuidedLocalAt(const Point3& p) {
-        if (useSpatialGuidingAt(p)) {
+    LocalGuidedSample sampleGuidedLocalAt(const Point3& p, GuidingMode mode) {
+        if (useSpatialGuidingAt(p, mode)) {
             return gGuidingTrainer.spatialDistribution().sampleLocal(p, kMinSpatialGuidingSamplesPerCell);
         }
 
         return gGuidingTrainer.distribution().sample();
     }
 
-    double guidedPdfLocalAt(const Point3& p, const Vec3& localWi) {
-        if (useSpatialGuidingAt(p)) {
+    double guidedPdfLocalAt(const Point3& p, const Vec3& localWi, GuidingMode mode) {
+        if (useSpatialGuidingAt(p, mode)) {
             return gGuidingTrainer.spatialDistribution().pdfLocal(p, localWi, kMinSpatialGuidingSamplesPerCell);
         }
 
@@ -208,12 +212,15 @@ void Renderer::setGuidingProbability(double probability) {
     );
 }
 
+void Renderer::setGuidingMode(GuidingMode mode) {
+    guidingMode = mode;
+}
+
 /*
 trace() 执行逻辑：
-
 1. 初始化 L、beta、ray 和 previous* 状态。
 2. 每个 bounce 先用 ray 和场景求交。
-3. 如果没命中，说明看到了 environment：
+3. 如果没命中，说明看到 environment：
    - 主射线直接看到 environment：直接加到 L。
    - BSDF sample 之后看到 environment：用 MIS 加到 L。
 4. 如果命中 emitter：
@@ -226,7 +233,6 @@ trace() 执行逻辑：
 6. 深度足够后执行俄罗斯轮盘。
 7. 保存 previous*，用于下一跳如果打到 light / environment 时计算 MIS。
 8. 发射下一条 ray，继续 bounce。
-
 核心检查点：
 - L += ... 表示真正累计光。
 - beta *= ... 表示更新路径权重。
@@ -336,7 +342,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         double pdfGuided = 0.0;
         double pdfFinal = 0.0;
 
-        bool canUseGuiding = enableGuidedSampling && canUseGuidingAt(rec.p);
+        bool canUseGuiding = enableGuidedSampling && canUseGuidingAt(rec.p, guidingMode);
 
         double pGuiding = canUseGuiding ? guidingProbability : 0.0;
 
@@ -377,7 +383,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 ++gStats.guidedStrategySamples;
 
                 LocalGuidedSample guidedSample =
-                    sampleGuidedLocalAt(rec.p);
+                    sampleGuidedLocalAt(rec.p, guidingMode);
 
                 if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
                     // guiding 无效时回退到最初的 BSDF sample
@@ -398,7 +404,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     pdfGuided =
                         guidedPdfLocalAt(
                             rec.p,
-                            localWi
+                            localWi,
+                            guidingMode
                         );
 
                     usedGuidedSampling = false;
@@ -431,7 +438,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         pdfGuided =
                             guidedPdfLocalAt(
                                 rec.p,
-                                fallbackLocalWi
+                                fallbackLocalWi,
+                                guidingMode
                             );
 
                         usedGuidedSampling = false;
@@ -473,7 +481,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     pdfGuided =
                         guidedPdfLocalAt(
                             rec.p,
-                            localWi
+                            localWi,
+                            guidingMode
                         );
                 } else {
                     pdfGuided = 0.0;
@@ -593,3 +602,4 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
         gGuidingTrainer.printStats();
     }
 }
+

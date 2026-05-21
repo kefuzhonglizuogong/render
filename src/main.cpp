@@ -28,6 +28,7 @@
 #include "io/obj_loader.h"
 #include "io/image_loader.h"
 #include "image/float_image.h"
+#include "guiding/guiding_mode.h"
 #include "guiding/directional_histogram_debug.h"
 
 
@@ -499,6 +500,7 @@ int main() {
         guidedRenderer.setEnableGuidingRecord(false);
         guidedRenderer.setEnableGuidedSampling(true);
         guidedRenderer.setGuidingProbability(config.guidingProbability);
+        guidedRenderer.setGuidingMode(GuidingMode::Spatial);
 
         gStats.reset();
 
@@ -1107,3 +1109,4 @@ Guided time:        100.722 s
 Total guided cost:  115.127 s
 ===============================
 */
+

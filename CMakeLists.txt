@@ -64,6 +64,6 @@ add_executable(mini_path_tracer
     include/render/scene.h
     include/io/image_loader.h
     include/io/obj_loader.h
- "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h" "include/render/guiding_debug.h" "src/render/guiding_debug.cpp" "include/guiding/directional_histogram.h" "src/guiding/directional_histogram.cpp" "include/guiding/directional_histogram_debug.h" "src/guiding/directional_histogram_debug.cpp" "include/guiding/guiding_trainer.h" "src/guiding/guiding_trainer.cpp" "include/guiding/local_hemisphere_histogram.h" "src/guiding/local_hemisphere_histogram.cpp" "src/guiding/spatial_guiding_grid.cpp" "include/guiding/spatial_guiding_grid.h")
+ "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h" "include/render/guiding_debug.h" "src/render/guiding_debug.cpp" "include/guiding/directional_histogram.h" "src/guiding/directional_histogram.cpp" "include/guiding/directional_histogram_debug.h" "src/guiding/directional_histogram_debug.cpp" "include/guiding/guiding_trainer.h" "src/guiding/guiding_trainer.cpp" "include/guiding/local_hemisphere_histogram.h" "src/guiding/local_hemisphere_histogram.cpp" "src/guiding/spatial_guiding_grid.cpp" "include/guiding/spatial_guiding_grid.h" "include/guiding/guiding_mode.h")
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
