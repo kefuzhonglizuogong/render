@@ -151,6 +151,42 @@ namespace {
 
     GuidingDebugCollector gGuidingDebugCollector;
     GuidingTrainer gGuidingTrainer;
+
+    constexpr int kMinSpatialGuidingSamplesPerCell = 16;
+
+    bool useSpatialGuidingAt(const Point3& p) {
+        const SpatialGuidingCell* cell = gGuidingTrainer.spatialDistribution().cellAt(p);
+
+        if (!cell) {
+            return false;
+        }
+
+        return cell->isReady(kMinSpatialGuidingSamplesPerCell);
+    }
+
+    bool canUseGuidingAt(const Point3& p) {
+        if (useSpatialGuidingAt(p)) {
+            return true;
+        }
+
+        return gGuidingTrainer.distribution().getTotalWeight() > 0.0;
+    }
+
+    LocalGuidedSample sampleGuidedLocalAt(const Point3& p) {
+        if (useSpatialGuidingAt(p)) {
+            return gGuidingTrainer.spatialDistribution().sampleLocal(p, kMinSpatialGuidingSamplesPerCell);
+        }
+
+        return gGuidingTrainer.distribution().sample();
+    }
+
+    double guidedPdfLocalAt(const Point3& p, const Vec3& localWi) {
+        if (useSpatialGuidingAt(p)) {
+            return gGuidingTrainer.spatialDistribution().pdfLocal(p, localWi, kMinSpatialGuidingSamplesPerCell);
+        }
+
+        return gGuidingTrainer.distribution().pdf(localWi);
+    }
 }
 
 Renderer::Renderer(int spp, int depth)
@@ -300,7 +336,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
         double pdfGuided = 0.0;
         double pdfFinal = 0.0;
 
-        bool canUseGuiding = enableGuidedSampling && gGuidingTrainer.distribution().getTotalWeight() > 0.0;
+        bool canUseGuiding = enableGuidedSampling && canUseGuidingAt(rec.p);
 
         double pGuiding = canUseGuiding ? guidingProbability : 0.0;
 
@@ -341,7 +377,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 ++gStats.guidedStrategySamples;
 
                 LocalGuidedSample guidedSample =
-                    gGuidingTrainer.distribution().sample();
+                    sampleGuidedLocalAt(rec.p);
 
                 if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
                     // guiding 无效时回退到最初的 BSDF sample
@@ -360,7 +396,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         frame.toLocal(wi).normalized();
 
                     pdfGuided =
-                        gGuidingTrainer.distribution().pdf(
+                        guidedPdfLocalAt(
+                            rec.p,
                             localWi
                         );
 
@@ -392,7 +429,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                             frame.toLocal(wi).normalized();
 
                         pdfGuided =
-                            gGuidingTrainer.distribution().pdf(
+                            guidedPdfLocalAt(
+                                rec.p,
                                 fallbackLocalWi
                             );
 
@@ -433,7 +471,8 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         frame.toLocal(wi).normalized();
 
                     pdfGuided =
-                        gGuidingTrainer.distribution().pdf(
+                        guidedPdfLocalAt(
+                            rec.p,
                             localWi
                         );
                 } else {
