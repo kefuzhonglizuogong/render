@@ -1,6 +1,8 @@
 #pragma once
 
+#include "core/aabb.h"
 #include "guiding/local_hemisphere_histogram.h"
+#include "guiding/spatial_guiding_grid.h"
 #include "render/path_vertex.h"
 
 #include <cstdint>
@@ -21,32 +23,35 @@ public:
     GuidingTrainer();
 
     void reset();
+    void configureSpatialGrid(const AABB& bounds, int nx, int ny, int nz);
 
     void recordVertex(const PathVertex& vertex);
-
     void build();
 
-    LocalHemisphereHistogram& distribution() {
-        return histogram;
-    }
+    LocalHemisphereHistogram& distribution() { return histogram; }
+    const LocalHemisphereHistogram& distribution() const { return histogram; }
 
-    const LocalHemisphereHistogram& distribution() const {
-        return histogram;
-    }
+    SpatialGuidingGrid& spatialDistribution() { return spatialGrid; }
+    const SpatialGuidingGrid& spatialDistribution() const { return spatialGrid; }
 
-    const GuidingTrainerStats& stats() const {
-        return trainerStats;
-    }
+    const GuidingTrainerStats& stats() const { return trainerStats; }
 
     void printStats() const;
 
 private:
     LocalHemisphereHistogram histogram;
+    SpatialGuidingGrid spatialGrid;
+
+    AABB spatialGridBounds;
+    int spatialGridNx = 4;
+    int spatialGridNy = 2;
+    int spatialGridNz = 4;
+
     GuidingTrainerStats trainerStats;
 
+    void resetSpatialGrid();
+
     double computeTrainingWeight(const PathVertex& vertex) const;
-
     double maxColorComponent(const Color& c) const;
-
     bool isBad(double x) const;
 };
