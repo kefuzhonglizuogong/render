@@ -16,57 +16,32 @@
 5. 暂时不放 glass / mirror / GGX，避免干扰判断
 */
 void buildTestScene(Scene& scene) {
-    // =====================================================
-    // Materials
-    // =====================================================
-
-    auto groundMat = std::make_shared<Lambertian>(
-        Color(0.75, 0.75, 0.75)
-    );
-
-    auto wallMat = std::make_shared<Lambertian>(
-        Color(0.72, 0.72, 0.72)
-    );
-
-    auto redMat = std::make_shared<Lambertian>(
-        Color(0.75, 0.20, 0.18)
-    );
-
-    auto blueMat = std::make_shared<Lambertian>(
-        Color(0.18, 0.28, 0.80)
-    );
-
-    auto greenMat = std::make_shared<Lambertian>(
-        Color(0.20, 0.65, 0.25)
-    );
-
-    auto blockerMat = std::make_shared<Lambertian>(
-        Color(0.55, 0.55, 0.55)
-    );
-
-    // =====================================================
-    // Cornell-box-like open scene
-    // =====================================================
+    auto whiteMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
+    auto redMat = std::make_shared<Lambertian>(Color(0.75, 0.18, 0.16));
+    auto greenMat = std::make_shared<Lambertian>(Color(0.18, 0.65, 0.22));
+    auto blueMat = std::make_shared<Lambertian>(Color(0.18, 0.28, 0.80));
+    auto darkMat = std::make_shared<Lambertian>(Color(0.45, 0.45, 0.45));
+    auto blockerMat = std::make_shared<Lambertian>(Color(0.55, 0.55, 0.55));
 
     // Ground
     scene.add(std::make_shared<Quad>(
         Point3(-3.0, -0.5, -1.0),
         Vec3(6.0, 0.0, 0.0),
         Vec3(0.0, 0.0, -5.5),
-        groundMat
+        whiteMat
     ));
 
     // Back wall
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, -0.5, -5.5),
+        Point3(-3.0, -0.5, -6.5),
         Vec3(6.0, 0.0, 0.0),
         Vec3(0.0, 3.0, 0.0),
-        wallMat
+        whiteMat
     ));
 
     // Left wall
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, -0.5, -5.5),
+        Point3(-3.0, -0.5, -6.5),
         Vec3(0.0, 0.0, 5.5),
         Vec3(0.0, 3.0, 0.0),
         redMat
@@ -80,47 +55,56 @@ void buildTestScene(Scene& scene) {
         blueMat
     ));
 
-    // =====================================================
-    // Diffuse objects
-    // =====================================================
+    // Ceiling
+    scene.add(std::make_shared<Quad>(
+        Point3(-3.0, 2.5, -6.5),
+        Vec3(6.0, 0.0, 0.0),
+        Vec3(0.0, 0.0, 5.5),
+        whiteMat
+    ));
 
+    // Small diffuse objects
     scene.add(std::make_shared<Sphere>(
-        Point3(-1.1, -0.05, -3.0),
+        Point3(-1.25, -0.05, -3.25),
         0.45,
         greenMat
     ));
 
     scene.add(std::make_shared<Sphere>(
-        Point3(1.0, -0.15, -3.4),
-        0.35,
-        wallMat
+        Point3(1.05, -0.18, -3.65),
+        0.32,
+        whiteMat
     ));
 
-    // A blocker near the light path.
-    // This creates more structured indirect illumination.
     scene.add(std::make_shared<Sphere>(
-        Point3(0.0, 0.75, -3.0),
-        0.35,
-        blockerMat
+        Point3(0.15, -0.28, -4.65),
+        0.22,
+        darkMat
     ));
 
+    // 垂直遮挡体：会削弱直射光照占比，同时扩大间接光照作用区域。
     scene.add(std::make_shared<Quad>(
-        Point3(-0.25, -0.5, -2.6),
-        Vec3(0.5, 0.0, 0.0),
-        Vec3(0.0, 1.6, 0.0),
+        Point3(-0.35, -0.5, -2.75),
+        Vec3(0.70, 0.0, 0.0),
+        Vec3(0.0, 1.75, 0.0),
         blockerMat
     ));
 
-    // =====================================================
-    // Small bright area light
-    // =====================================================
+    // 侧向遮挡体：会形成暗区，在此类区域中，空间引导与全局引导的采样表现会出现明显差异。
+    scene.add(std::make_shared<Quad>(
+        Point3(0.85, -0.5, -4.2),
+        Vec3(0.0, 0.0, -0.9),
+        Vec3(0.0, 1.35, 0.0),
+        blockerMat
+    ));
 
-    Color lightEmission(60.0, 60.0, 60.0);
+    // Small bright area light.
+    Color lightEmission(55.0, 55.0, 55.0);
     auto lightMat = std::make_shared<DiffuseLight>(lightEmission);
 
-    Point3 lightCorner(-0.35, 1.95, -3.8);
-    Vec3 lightU(0.35, 0.0, 0.0);
-    Vec3 lightV(0.0, 0.0, 0.35);
+    Point3 lightCorner(-0.28, 2.38, -3.95);
+    Vec3 lightU(0.56, 0.0, 0.0);
+    Vec3 lightV(0.0, 0.0, 0.56);
 
     scene.add(std::make_shared<Quad>(
         lightCorner,

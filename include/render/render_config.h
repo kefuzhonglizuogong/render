@@ -10,8 +10,11 @@ struct RenderConfig {
     int imageWidth = 400;
     double aspectRatio = 16.0 / 9.0;
 
-    int samplesPerPixel = 200;
+    int samplesPerPixel = 200;//200
     int maxDepth = 12;
+
+    int trainingSamplesPerPixel = 128;
+    double guidingProbability = 0.8;
 
     // =====================================================
     // Acceleration
@@ -48,8 +51,10 @@ struct RenderConfig {
     bool runGuidingComparison = true;
     std::string baselineOutputPath;
     std::string guidedOutputPath;
-    int trainingSamplesPerPixel = 128;
-    double guidingProbability = 0.5;
+
+    std::string globalGuidedOutputPath;
+    std::string spatialGuidedOutputPath;
+    
 
     double meshCenterX = -0.3;
     double meshCenterY = 0.0;

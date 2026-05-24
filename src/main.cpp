@@ -105,6 +105,20 @@ namespace {
             else {
                 config.guidedOutputPath = projectPath(config.guidedOutputPath).string();
             }
+
+            if (config.globalGuidedOutputPath.empty()) {
+                config.globalGuidedOutputPath = (outputDir / ("render_" + timestamp + "_global_guided.ppm")).string();
+            }
+            else {
+                config.globalGuidedOutputPath = projectPath(config.globalGuidedOutputPath).string();
+            }
+
+            if (config.spatialGuidedOutputPath.empty()) {
+                config.spatialGuidedOutputPath = (outputDir / ("render_" + timestamp + "_spatial_guided.ppm")).string();
+            }
+            else {
+                config.spatialGuidedOutputPath = projectPath(config.spatialGuidedOutputPath).string();
+            }
         }
     }
 
@@ -447,7 +461,7 @@ int main() {
         }
     };
 
-    // 对比模式：依次运行 baseline / training / guided 三个阶段。
+    // 对比模式：依次运行 baseline / training / global guided / spatial guided 四个阶段。
     if (config.runGuidingComparison) {
         std::cout << "\n=== Baseline Render ===\n";
 
@@ -492,32 +506,58 @@ int main() {
         std::cout << "Training pass finished.\n";
         std::cout << "Training time seconds: " << trainingTime << "\n";
 
-        std::cout << "\n=== Guided Render ===\n";
+        std::cout << "\n=== Global Guided Render ===\n";
 
-        // Guided：复用训练好的分布生成最终输出。
-        Film guidedFilm(imageWidth, imageHeight);
-        Renderer guidedRenderer(samplesPerPixel, maxDepth);
-        guidedRenderer.setEnableGuidingRecord(false);
-        guidedRenderer.setEnableGuidedSampling(true);
-        guidedRenderer.setGuidingProbability(config.guidingProbability);
-        guidedRenderer.setGuidingMode(GuidingMode::Spatial);
+        // Global guided：复用训练好的全局分布生成输出。
+        Film globalGuidedFilm(imageWidth, imageHeight);
+        Renderer globalGuidedRenderer(samplesPerPixel, maxDepth);
+        globalGuidedRenderer.setEnableGuidingRecord(false);
+        globalGuidedRenderer.setEnableGuidedSampling(true);
+        globalGuidedRenderer.setGuidingProbability(config.guidingProbability);
+        globalGuidedRenderer.setGuidingMode(GuidingMode::Global);
 
         gStats.reset();
 
-        auto guidedStart = std::chrono::high_resolution_clock::now();
-        guidedRenderer.render(scene, camera, guidedFilm);
-        auto guidedEnd = std::chrono::high_resolution_clock::now();
+        auto globalGuidedStart = std::chrono::high_resolution_clock::now();
+        globalGuidedRenderer.render(scene, camera, globalGuidedFilm);
+        auto globalGuidedEnd = std::chrono::high_resolution_clock::now();
 
-        ensureOutputDirectory(config.guidedOutputPath);
-        guidedFilm.savePPM(config.guidedOutputPath, samplesPerPixel);
+        ensureOutputDirectory(config.globalGuidedOutputPath);
+        globalGuidedFilm.savePPM(config.globalGuidedOutputPath, samplesPerPixel);
 
-        double guidedTime = std::chrono::duration<double>(guidedEnd - guidedStart).count();
+        double globalGuidedTime =
+            std::chrono::duration<double>(globalGuidedEnd - globalGuidedStart).count();
 
-        std::cout << "Guided render finished: " << config.guidedOutputPath << "\n";
-        std::cout << "Guided render time seconds: " << guidedTime << "\n";
+        std::cout << "Global guided render finished: " << config.globalGuidedOutputPath << "\n";
+        std::cout << "Global guided render time seconds: " << globalGuidedTime << "\n";
+
+        std::cout << "\n=== Spatial Guided Render ===\n";
+
+        // Spatial guided：复用训练好的空间分布生成输出。
+        Film spatialGuidedFilm(imageWidth, imageHeight);
+        Renderer spatialGuidedRenderer(samplesPerPixel, maxDepth);
+        spatialGuidedRenderer.setEnableGuidingRecord(false);
+        spatialGuidedRenderer.setEnableGuidedSampling(true);
+        spatialGuidedRenderer.setGuidingProbability(config.guidingProbability);
+        spatialGuidedRenderer.setGuidingMode(GuidingMode::Spatial);
+
+        gStats.reset();
+
+        auto spatialGuidedStart = std::chrono::high_resolution_clock::now();
+        spatialGuidedRenderer.render(scene, camera, spatialGuidedFilm);
+        auto spatialGuidedEnd = std::chrono::high_resolution_clock::now();
+
+        ensureOutputDirectory(config.spatialGuidedOutputPath);
+        spatialGuidedFilm.savePPM(config.spatialGuidedOutputPath, samplesPerPixel);
+
+        double spatialGuidedTime =
+            std::chrono::duration<double>(spatialGuidedEnd - spatialGuidedStart).count();
+
+        std::cout << "Spatial guided render finished: " << config.spatialGuidedOutputPath << "\n";
+        std::cout << "Spatial guided render time seconds: " << spatialGuidedTime << "\n";
 
         std::cout << "\n=== Render Stats ===\n";
-        std::cout << "Render time seconds:       " << guidedTime << "\n";
+        std::cout << "Render time seconds:       " << spatialGuidedTime << "\n";
         std::cout << "Scene intersect calls:     " << gStats.sceneIntersectCalls << "\n";
         std::cout << "Guiding vertices:          " << gStats.guidingVertices << "\n";
         std::cout << "BVH node intersect calls:  " << gStats.bvhNodeIntersectCalls << "\n";
@@ -570,13 +610,19 @@ int main() {
         std::cout << "\n=== Guiding Comparison Summary ===\n";
         std::cout << "Baseline spp:       " << samplesPerPixel << "\n";
         std::cout << "Training spp:       " << config.trainingSamplesPerPixel << "\n";
-        std::cout << "Guided spp:         " << samplesPerPixel << "\n";
+        std::cout << "Global guided spp:  " << samplesPerPixel << "\n";
+        std::cout << "Spatial guided spp: " << samplesPerPixel << "\n";
         std::cout << "Max depth:          " << maxDepth << "\n";
         std::cout << "Guiding probability:" << config.guidingProbability << "\n";
         std::cout << "Baseline time:      " << baselineTime << " s\n";
         std::cout << "Training time:      " << trainingTime << " s\n";
-        std::cout << "Guided time:        " << guidedTime << " s\n";
-        std::cout << "Total guided cost:  " << trainingTime + guidedTime << " s\n";
+        std::cout << "Global guided time: " << globalGuidedTime << " s\n";
+        std::cout << "Spatial guided time:" << spatialGuidedTime << " s\n";
+        std::cout << "Total global guided cost: " << trainingTime + globalGuidedTime << " s\n";
+        std::cout << "Total spatial guided cost: " << trainingTime + spatialGuidedTime << " s\n";
+        std::cout << "Total guided cost:  "
+                  << trainingTime + globalGuidedTime + spatialGuidedTime
+                  << " s\n";
         std::cout << "===============================\n";
 
         return 0;
