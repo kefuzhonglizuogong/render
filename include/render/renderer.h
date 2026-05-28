@@ -31,3 +31,5 @@ public:
 
     GuidingMode guidingMode = GuidingMode::Spatial;
 };
+
+void printGuidingDistributionSummary();

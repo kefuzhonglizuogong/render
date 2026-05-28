@@ -31,9 +31,9 @@
 #include "guiding/guiding_mode.h"
 #include "guiding/directional_histogram_debug.h"
 
-
-
-
+#ifdef RENDER_ENABLE_OPENPGL
+#include <openpgl/openpgl.h>
+#endif
 
 namespace {
     std::filesystem::path projectPath(const std::string& path) {
@@ -127,6 +127,12 @@ namespace {
 int main() {
     //debugDirectionalHistogram();
 
+#ifdef RENDER_ENABLE_OPENPGL
+    std::cout << "Open PGL enabled" << std::endl;
+#else
+    std::cout << "Open PGL disabled" << std::endl;
+#endif
+
     RenderConfig config;
     resolveConfigPaths(config);
 
@@ -135,6 +141,7 @@ int main() {
     const int imageHeight = static_cast<int>(imageWidth / aspectRatio);
 
     const int samplesPerPixel = config.samplesPerPixel;
+    const int trainingSamplesPerPixel = config.trainingSamplesPerPixel;
     const int maxDepth = config.maxDepth;
 
     Scene scene;
@@ -490,7 +497,7 @@ int main() {
 
         // Training：收集 guiding 数据，但训练阶段本身不使用 guiding 采样。
         Film trainingFilm(imageWidth, imageHeight);
-        Renderer trainingRenderer(config.trainingSamplesPerPixel, maxDepth);
+        Renderer trainingRenderer(trainingSamplesPerPixel, maxDepth);
         trainingRenderer.setEnableGuidingRecord(true);
         trainingRenderer.setEnableGuidedSampling(false);
 
@@ -608,22 +615,30 @@ int main() {
         std::cout << "=============================\n";
 
         std::cout << "\n=== Guiding Comparison Summary ===\n";
-        std::cout << "Baseline spp:       " << samplesPerPixel << "\n";
-        std::cout << "Training spp:       " << config.trainingSamplesPerPixel << "\n";
-        std::cout << "Global guided spp:  " << samplesPerPixel << "\n";
-        std::cout << "Spatial guided spp: " << samplesPerPixel << "\n";
-        std::cout << "Max depth:          " << maxDepth << "\n";
-        std::cout << "Guiding probability:" << config.guidingProbability << "\n";
-        std::cout << "Baseline time:      " << baselineTime << " s\n";
-        std::cout << "Training time:      " << trainingTime << " s\n";
-        std::cout << "Global guided time: " << globalGuidedTime << " s\n";
-        std::cout << "Spatial guided time:" << spatialGuidedTime << " s\n";
+        std::cout << "Image width: " << imageWidth << "\n";
+        std::cout << "Image height: " << imageHeight << "\n";
+        std::cout << "Render samples per pixel: " << samplesPerPixel << "\n";
+        std::cout << "Training samples per pixel: " << trainingSamplesPerPixel << "\n";
+        std::cout << "Max depth: " << maxDepth << "\n";
+        std::cout << "Guiding probability: " << config.guidingProbability << "\n";
+
+        std::cout << "\n--- Time ---\n";
+        std::cout << "Baseline render time: " << baselineTime << " s\n";
+        std::cout << "Training pass time: " << trainingTime << " s\n";
+        std::cout << "Global guided render time: " << globalGuidedTime << " s\n";
+        std::cout << "Spatial guided render time: " << spatialGuidedTime << " s\n";
         std::cout << "Total global guided cost: " << trainingTime + globalGuidedTime << " s\n";
         std::cout << "Total spatial guided cost: " << trainingTime + spatialGuidedTime << " s\n";
-        std::cout << "Total guided cost:  "
-                  << trainingTime + globalGuidedTime + spatialGuidedTime
-                  << " s\n";
-        std::cout << "===============================\n";
+
+        std::cout << "\n--- Output ---\n";
+        std::cout << "Baseline output: " << config.baselineOutputPath << "\n";
+        std::cout << "Global guided output: " << config.globalGuidedOutputPath << "\n";
+        std::cout << "Spatial guided output: " << config.spatialGuidedOutputPath << "\n";
+
+        std::cout << "\n--- Guiding Distribution ---\n";
+        printGuidingDistributionSummary();
+
+        std::cout << "================================\n";
 
         return 0;
     }

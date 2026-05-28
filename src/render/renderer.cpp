@@ -197,6 +197,12 @@ Renderer::Renderer(int spp, int depth)
     : samplesPerPixel(spp), maxDepth(depth) {
 }
 
+void printGuidingDistributionSummary() {
+    std::cout << "Global histogram total weight: " << gGuidingTrainer.distribution().getTotalWeight() << "\n";
+    std::cout << "Spatial grid total samples: " << gGuidingTrainer.spatialDistribution().totalSamples() << "\n";
+    std::cout << "Spatial grid active cells: " << gGuidingTrainer.spatialDistribution().activeCells() << "\n";
+}
+
 void Renderer::setEnableGuidingRecord(bool enabled) {
     enableGuidingRecord = enabled;
 }

@@ -8,101 +8,165 @@
 
 #include <memory>
 
-/*
-1. 主要使用 Lambertian 材质
-2. 有地面、背墙、侧墙，形成间接光环境
-3. 小面积强光源放在上方偏侧位置
-4. 加几个遮挡物，让直接采样和 BSDF 采样更有挑战
-5. 暂时不放 glass / mirror / GGX，避免干扰判断
-*/
 void buildTestScene(Scene& scene) {
     auto whiteMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
+    auto wallMat = std::make_shared<Lambertian>(Color(0.70, 0.70, 0.70));
     auto redMat = std::make_shared<Lambertian>(Color(0.75, 0.18, 0.16));
-    auto greenMat = std::make_shared<Lambertian>(Color(0.18, 0.65, 0.22));
     auto blueMat = std::make_shared<Lambertian>(Color(0.18, 0.28, 0.80));
-    auto darkMat = std::make_shared<Lambertian>(Color(0.45, 0.45, 0.45));
-    auto blockerMat = std::make_shared<Lambertian>(Color(0.55, 0.55, 0.55));
+    auto greenMat = std::make_shared<Lambertian>(Color(0.18, 0.65, 0.22));
+    auto darkMat = std::make_shared<Lambertian>(Color(0.38, 0.38, 0.38));
+    auto baffleMat = std::make_shared<Lambertian>(Color(0.50, 0.50, 0.50));
+
+    const double xMin = -2.6;
+    const double xMax = 2.6;
+    const double yFloor = -0.5;
+    const double yCeiling = 2.20;
+    const double zNear = -1.2;
+    const double zFar = -5.8;
 
     // Ground
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, -0.5, -1.0),
-        Vec3(6.0, 0.0, 0.0),
-        Vec3(0.0, 0.0, -5.5),
+        Point3(xMin, yFloor, zNear),
+        Vec3(xMax - xMin, 0.0, 0.0),
+        Vec3(0.0, 0.0, zFar - zNear),
         whiteMat
     ));
 
     // Back wall
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, -0.5, -6.5),
-        Vec3(6.0, 0.0, 0.0),
-        Vec3(0.0, 3.0, 0.0),
-        whiteMat
+        Point3(xMin, yFloor, zFar),
+        Vec3(xMax - xMin, 0.0, 0.0),
+        Vec3(0.0, yCeiling - yFloor, 0.0),
+        wallMat
     ));
 
     // Left wall
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, -0.5, -6.5),
-        Vec3(0.0, 0.0, 5.5),
-        Vec3(0.0, 3.0, 0.0),
+        Point3(xMin, yFloor, zFar),
+        Vec3(0.0, 0.0, zNear - zFar),
+        Vec3(0.0, yCeiling - yFloor, 0.0),
         redMat
     ));
 
     // Right wall
     scene.add(std::make_shared<Quad>(
-        Point3(3.0, -0.5, -1.0),
-        Vec3(0.0, 0.0, -5.5),
-        Vec3(0.0, 3.0, 0.0),
+        Point3(xMax, yFloor, zNear),
+        Vec3(0.0, 0.0, zFar - zNear),
+        Vec3(0.0, yCeiling - yFloor, 0.0),
         blueMat
     ));
 
     // Ceiling
     scene.add(std::make_shared<Quad>(
-        Point3(-3.0, 2.5, -6.5),
-        Vec3(6.0, 0.0, 0.0),
-        Vec3(0.0, 0.0, 5.5),
-        whiteMat
+        Point3(xMin, yCeiling, zFar),
+        Vec3(xMax - xMin, 0.0, 0.0),
+        Vec3(0.0, 0.0, zNear - zFar),
+        wallMat
     ));
 
-    // Small diffuse objects
+    // -----------------------------------------------------
+    // Baffle with a square hole
+    // -----------------------------------------------------
+
+    const double baffleY = 1.35;
+    const double baffleXMin = -2.1;
+    const double baffleXMax = 2.1;
+    const double baffleZNear = -1.55;
+    const double baffleZFar = -5.45;
+    const double holeXMin = -0.42;
+    const double holeXMax = 0.42;
+    const double holeZNear = -3.18;
+    const double holeZFar = -4.02;
+
+    // Left part of baffle
+    scene.add(std::make_shared<Quad>(
+        Point3(baffleXMin, baffleY, baffleZNear),
+        Vec3(holeXMin - baffleXMin, 0.0, 0.0),
+        Vec3(0.0, 0.0, baffleZFar - baffleZNear),
+        baffleMat
+    ));
+
+    // Right part of baffle
+    scene.add(std::make_shared<Quad>(
+        Point3(holeXMax, baffleY, baffleZNear),
+        Vec3(baffleXMax - holeXMax, 0.0, 0.0),
+        Vec3(0.0, 0.0, baffleZFar - baffleZNear),
+        baffleMat
+    ));
+
+    // Front part of baffle
+    scene.add(std::make_shared<Quad>(
+        Point3(holeXMin, baffleY, baffleZNear),
+        Vec3(holeXMax - holeXMin, 0.0, 0.0),
+        Vec3(0.0, 0.0, holeZNear - baffleZNear),
+        baffleMat
+    ));
+
+    // Back part of baffle
+    scene.add(std::make_shared<Quad>(
+        Point3(holeXMin, baffleY, holeZFar),
+        Vec3(holeXMax - holeXMin, 0.0, 0.0),
+        Vec3(0.0, 0.0, baffleZFar - holeZFar),
+        baffleMat
+    ));
+
+    // -----------------------------------------------------
+    // Objects below the baffle
+    // -----------------------------------------------------
+
+    const double blockerY = 0.85;
+    const double blockerSize = 0.85;
+
+    scene.add(std::make_shared<Quad>(
+        Point3(-0.425, blockerY, -3.175),
+        Vec3(blockerSize, 0.0, 0.0),
+        Vec3(0.0, 0.0, -blockerSize),
+        baffleMat
+    ));
+
     scene.add(std::make_shared<Sphere>(
-        Point3(-1.25, -0.05, -3.25),
+        Point3(-1.10, -0.05, -3.10),
         0.45,
         greenMat
     ));
 
     scene.add(std::make_shared<Sphere>(
-        Point3(1.05, -0.18, -3.65),
+        Point3(1.05, -0.18, -3.85),
         0.32,
         whiteMat
     ));
 
     scene.add(std::make_shared<Sphere>(
-        Point3(0.15, -0.28, -4.65),
-        0.22,
+        Point3(0.15, -0.25, -4.85),
+        0.25,
         darkMat
     ));
 
-    // 垂直遮挡体：会削弱直射光照占比，同时扩大间接光照作用区域。
+    /*
+    // Low vertical blocker below the hole
     scene.add(std::make_shared<Quad>(
-        Point3(-0.35, -0.5, -2.75),
-        Vec3(0.70, 0.0, 0.0),
-        Vec3(0.0, 1.75, 0.0),
-        blockerMat
+        Point3(-0.28, yFloor, -2.65),
+        Vec3(0.56, 0.0, 0.0),
+        Vec3(0.0, 0.95, 0.0),
+        baffleMat
     ));
 
-    // 侧向遮挡体：会形成暗区，在此类区域中，空间引导与全局引导的采样表现会出现明显差异。
+    // Side blocker to create spatially different visible directions
     scene.add(std::make_shared<Quad>(
-        Point3(0.85, -0.5, -4.2),
-        Vec3(0.0, 0.0, -0.9),
-        Vec3(0.0, 1.35, 0.0),
-        blockerMat
+        Point3(0.85, yFloor, -4.20),
+        Vec3(0.0, 0.0, -0.85),
+        Vec3(0.0, 1.05, 0.0),
+        baffleMat
     ));
+    */
+    // -----------------------------------------------------
+    // Small area light above the hole
+    // -----------------------------------------------------
 
-    // Small bright area light.
-    Color lightEmission(55.0, 55.0, 55.0);
+    Color lightEmission(105.0, 105.0, 105.0);
     auto lightMat = std::make_shared<DiffuseLight>(lightEmission);
 
-    Point3 lightCorner(-0.28, 2.38, -3.95);
+    Point3 lightCorner(-0.28, yCeiling - 1e-4, -3.88);
     Vec3 lightU(0.56, 0.0, 0.0);
     Vec3 lightV(0.0, 0.0, 0.56);
 
