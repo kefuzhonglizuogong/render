@@ -11,38 +11,41 @@ include_directories(include)
 
 add_executable(mini_path_tracer
     src/main.cpp
-    src/render/camera.cpp
-    src/render/film.cpp
-    src/render/light_selection_debug.cpp
-    src/render/renderer.cpp
-    src/render/scene.cpp
-    src/render/test_scenes.cpp
-    src/render/guiding_debug.cpp
-    src/material/material.cpp
-    src/material/bsdf_debug.cpp
+    src/core/stats.cpp
+    src/geometry/bvh.cpp
+    src/geometry/mesh.cpp
     src/geometry/plane.cpp
     src/geometry/quad.cpp
-    src/geometry/triangle.cpp
-    src/geometry/mesh.cpp
     src/geometry/sphere.cpp
-    src/geometry/bvh.cpp
-    src/light/light.cpp
-    src/light/environment_light.cpp
-    src/light/environment_debug.cpp
-    src/core/stats.cpp
-    src/io/obj_loader.cpp
-    src/io/image_loader.cpp
+    src/geometry/triangle.cpp
     src/guiding/directional_histogram.cpp
     src/guiding/directional_histogram_debug.cpp
     src/guiding/guiding_trainer.cpp
     src/guiding/local_hemisphere_histogram.cpp
+    src/guiding/openpgl_guiding.cpp
     src/guiding/spatial_guiding_grid.cpp
+    src/io/image_loader.cpp
+    src/io/obj_loader.cpp
+    src/light/environment_debug.cpp
+    src/light/environment_light.cpp
+    src/light/light.cpp
+    src/material/bsdf_debug.cpp
+    src/material/material.cpp
+    src/render/camera.cpp
+    src/render/film.cpp
+    src/render/guiding_debug.cpp
+    src/render/light_selection_debug.cpp
+    src/render/renderer.cpp
+    src/render/scene.cpp
+    src/render/test_scenes.cpp
+
     include/core/aabb.h
     include/core/frame.h
     include/core/random.h
     include/core/ray.h
     include/core/stats.h
     include/core/vec3.h
+
     include/geometry/bvh.h
     include/geometry/hit.h
     include/geometry/hittable.h
@@ -51,22 +54,40 @@ add_executable(mini_path_tracer
     include/geometry/quad.h
     include/geometry/sphere.h
     include/geometry/triangle.h
+
+    include/guiding/directional_histogram.h
+    include/guiding/directional_histogram_debug.h
+    include/guiding/guiding_mode.h
+    include/guiding/guiding_trainer.h
+    include/guiding/local_hemisphere_histogram.h
+    include/guiding/openpgl_guiding.h
+    include/guiding/spatial_guiding_grid.h
+
     include/image/float_image.h
     include/image/image.h
+
+    include/io/image_loader.h
+    include/io/obj_loader.h
+
     include/light/environment_debug.h
     include/light/environment_light.h
     include/light/light.h
+
     include/material/bsdf_debug.h
     include/material/bsdf_sample.h
     include/material/material.h
+
     include/render/camera.h
     include/render/film.h
+    include/render/guiding_debug.h
+    include/render/guiding_record.h
+    include/render/light_selection_debug.h
+    include/render/path_vertex.h
     include/render/render_config.h
     include/render/renderer.h
     include/render/scene.h
-    include/io/image_loader.h
-    include/io/obj_loader.h
- "include/render/test_scenes.h" "src/render/test_scenes.cpp" "include/render/path_vertex.h" "include/render/guiding_record.h" "include/render/guiding_debug.h" "src/render/guiding_debug.cpp" "include/guiding/directional_histogram.h" "src/guiding/directional_histogram.cpp" "include/guiding/directional_histogram_debug.h" "src/guiding/directional_histogram_debug.cpp" "include/guiding/guiding_trainer.h" "src/guiding/guiding_trainer.cpp" "include/guiding/local_hemisphere_histogram.h" "src/guiding/local_hemisphere_histogram.cpp" "src/guiding/spatial_guiding_grid.cpp" "include/guiding/spatial_guiding_grid.h" "include/guiding/guiding_mode.h")
+    include/render/test_scenes.h
+)
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 

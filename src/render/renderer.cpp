@@ -8,6 +8,7 @@
 #include "render/guiding_debug.h"
 #include "guiding/guiding_trainer.h"
 #include "guiding/local_hemisphere_histogram.h"
+#include "guiding/openpgl_guiding.h"
 
 
 #include <algorithm>
@@ -151,6 +152,7 @@ namespace {
 
     GuidingDebugCollector gGuidingDebugCollector;
     GuidingTrainer gGuidingTrainer;
+    OpenPGLGuiding gOpenPGLGuiding;
 
     constexpr int kMinSpatialGuidingSamplesPerCell = 16;
 
@@ -538,6 +540,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             guidingRecord.addVertex(vertex);
             gGuidingDebugCollector.recordVertex(vertex);
             gGuidingTrainer.recordVertex(vertex);
+            gOpenPGLGuiding.recordVertex(vertex);
 
             ++gStats.guidingVertices;
         }
@@ -579,6 +582,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
     if (enableGuidingRecord) {
         gGuidingDebugCollector.reset();
         gGuidingTrainer.reset();
+        gOpenPGLGuiding.reset();
     }
 
     for (int j = 0; j < film.height; ++j) {
@@ -603,9 +607,11 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
 
     if (enableGuidingRecord) {
         gGuidingTrainer.build();
+        gOpenPGLGuiding.build();
 
         gGuidingDebugCollector.print();
         gGuidingTrainer.printStats();
+        gOpenPGLGuiding.printStats();
     }
 }
 
