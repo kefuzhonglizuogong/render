@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <iostream>
 
 #ifdef RENDER_ENABLE_OPENPGL
@@ -34,6 +35,33 @@ struct OpenPGLGuiding::OpenPGLRuntime {
 #else
 struct OpenPGLGuiding::OpenPGLRuntime {
 };
+#endif
+
+#ifdef RENDER_ENABLE_OPENPGL
+pgl_point3f makePGLPoint(const Point3& p) {
+    pgl_point3f result;
+    pglPoint3f(result, static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
+    return result;
+}
+
+pgl_vec3f makePGLVec(const Vec3& v) {
+    pgl_vec3f result;
+    pglVec3f(result, static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
+    return result;
+}
+
+openpgl::cpp::SampleData makePGLSampleData(const OpenPGLTrainingSample& sample) {
+    openpgl::cpp::SampleData result{};
+
+    result.position = makePGLPoint(sample.position);
+    result.direction = makePGLVec(sample.directionIn);
+    result.weight = static_cast<float>(sample.weight);
+    result.pdf = static_cast<float>(sample.bsdfPdf);
+    result.distance = 1.0f;
+    result.flags = 0;
+
+    return result;
+}
 #endif
 
 OpenPGLGuiding::OpenPGLGuiding()
@@ -161,10 +189,46 @@ void OpenPGLGuiding::build() {
         return;
     }
 
-    if (runtime && runtime->sampleStorage) {
+    if (!runtime || !runtime->field || !runtime->sampleStorage) {
+        ++guidingStats.openPGLUpdateFailures;
+        return;
+    }
+
+    try {
+        runtime->sampleStorage->Clear();
+        runtime->sampleStorage->Reserve(trainingSamples.size(), 0);
+
+        for (const auto& sample : trainingSamples) {
+            if (!sample.valid) {
+                continue;
+            }
+
+            openpgl::cpp::SampleData pglSample = makePGLSampleData(sample);
+            runtime->sampleStorage->AddSample(pglSample);
+            ++guidingStats.openPGLSamplesAdded;
+        }
+
         guidingStats.openPGLSurfaceSamples = static_cast<std::uint64_t>(runtime->sampleStorage->GetSizeSurface());
         guidingStats.openPGLVolumeSamples = static_cast<std::uint64_t>(runtime->sampleStorage->GetSizeVolume());
+        guidingStats.openPGLStorageValid = runtime->sampleStorage->Validate();
+
+        if (guidingStats.openPGLSurfaceSamples == 0) {
+            return;
+        }
+
+        runtime->field->UpdateSurface(*runtime->sampleStorage);
+
+        guidingStats.openPGLFieldIteration = static_cast<std::uint64_t>(runtime->field->GetIteration());
+        guidingStats.openPGLFieldValid = runtime->field->Validate();
+        guidingStats.openPGLUpdateSucceeded = true;
+    } catch (const std::exception& e) {
+        ++guidingStats.openPGLUpdateFailures;
+        guidingStats.openPGLUpdateSucceeded = false;
+
+        std::cout << "Open PGL field update failed: " << e.what() << "\n";
     }
+#else
+    return;
 #endif
 }
 
@@ -234,6 +298,13 @@ void OpenPGLGuiding::printStats() const {
 
     std::cout << "Open PGL surface samples: " << guidingStats.openPGLSurfaceSamples << "\n";
     std::cout << "Open PGL volume samples: " << guidingStats.openPGLVolumeSamples << "\n";
+
+    std::cout << "Open PGL samples added: " << guidingStats.openPGLSamplesAdded << "\n";
+    std::cout << "Open PGL storage valid: " << (guidingStats.openPGLStorageValid ? "yes" : "no") << "\n";
+    std::cout << "Open PGL update succeeded: " << (guidingStats.openPGLUpdateSucceeded ? "yes" : "no") << "\n";
+    std::cout << "Open PGL update failures: " << guidingStats.openPGLUpdateFailures << "\n";
+    std::cout << "Open PGL field iteration: " << guidingStats.openPGLFieldIteration << "\n";
+    std::cout << "Open PGL field valid: " << (guidingStats.openPGLFieldValid ? "yes" : "no") << "\n";
 
     std::cout << "Build count: " << guidingStats.buildCount << "\n";
     std::cout << "Sample requests: " << guidingStats.sampleRequests << "\n";

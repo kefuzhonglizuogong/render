@@ -43,6 +43,13 @@ struct OpenPGLGuidingStats {
     std::uint64_t runtimeInitFailures = 0;
     std::uint64_t openPGLSurfaceSamples = 0;
     std::uint64_t openPGLVolumeSamples = 0;
+    std::uint64_t openPGLSamplesAdded = 0;
+    std::uint64_t openPGLUpdateFailures = 0;
+    std::uint64_t openPGLFieldIteration = 0;
+
+    bool openPGLStorageValid = false;
+    bool openPGLFieldValid = false;
+    bool openPGLUpdateSucceeded = false;
 
     double totalTrainingWeight = 0.0;
     double maxTrainingWeight = 0.0;
