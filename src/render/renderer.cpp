@@ -156,8 +156,20 @@ namespace {
 
     constexpr int kMinSpatialGuidingSamplesPerCell = 16;
 
+    bool useOpenPGLGuiding(GuidingMode mode) {
+        if (mode != GuidingMode::OpenPGL) {
+            return false;
+        }
+
+        if (!gOpenPGLGuiding.enabled()) {
+            return false;
+        }
+
+        return gOpenPGLGuiding.stats().openPGLUpdateSucceeded;
+    }
+
     bool useSpatialGuidingAt(const Point3& p, GuidingMode mode) {
-        if (mode != GuidingMode::Spatial) {
+        if (mode != GuidingMode::Spatial && mode != GuidingMode::OpenPGL) {
             return false;
         }
 
@@ -171,6 +183,10 @@ namespace {
     }
 
     bool canUseGuidingAt(const Point3& p, GuidingMode mode) {
+        if (useOpenPGLGuiding(mode)) {
+            return true;
+        }
+
         if (useSpatialGuidingAt(p, mode)) {
             return true;
         }
@@ -178,7 +194,29 @@ namespace {
         return gGuidingTrainer.distribution().getTotalWeight() > 0.0;
     }
 
-    LocalGuidedSample sampleGuidedLocalAt(const Point3& p, GuidingMode mode) {
+    LocalGuidedSample sampleGuidedLocalAt(const Point3& p, const Vec3& normal, const Vec3& wo, GuidingMode mode) {
+        if (useOpenPGLGuiding(mode)) {
+            OpenPGLGuidedSample openPGLSample = gOpenPGLGuiding.sample(p, normal, wo);
+
+            if (openPGLSample.valid && openPGLSample.pdf > 1e-12 && !isBadNumber(openPGLSample.pdf)) {
+                Vec3 worldWi = openPGLSample.wi.normalized();
+                double cosCheck = std::max(0.0, dot(normal.normalized(), worldWi));
+
+                if (cosCheck > 0.0) {
+                    Frame frame(normal);
+                    Vec3 localWi = frame.toLocal(worldWi).normalized();
+
+                    if (localWi.z > 0.0) {
+                        LocalGuidedSample result;
+                        result.localWi = localWi;
+                        result.pdf = openPGLSample.pdf;
+                        result.valid = true;
+                        return result;
+                    }
+                }
+            }
+        }
+
         if (useSpatialGuidingAt(p, mode)) {
             return gGuidingTrainer.spatialDistribution().sampleLocal(p, kMinSpatialGuidingSamplesPerCell);
         }
@@ -186,7 +224,17 @@ namespace {
         return gGuidingTrainer.distribution().sample();
     }
 
-    double guidedPdfLocalAt(const Point3& p, const Vec3& localWi, GuidingMode mode) {
+    double guidedPdfLocalAt(const Point3& p, const Vec3& normal, const Vec3& localWi, GuidingMode mode) {
+        if (useOpenPGLGuiding(mode)) {
+            Frame frame(normal);
+            Vec3 worldWi = frame.toWorld(localWi.normalized()).normalized();
+            double openPGLPdf = gOpenPGLGuiding.pdf(p, normal, worldWi);
+
+            if (openPGLPdf > 1e-12 && !isBadNumber(openPGLPdf)) {
+                return openPGLPdf;
+            }
+        }
+
         if (useSpatialGuidingAt(p, mode)) {
             return gGuidingTrainer.spatialDistribution().pdfLocal(p, localWi, kMinSpatialGuidingSamplesPerCell);
         }
@@ -391,7 +439,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 ++gStats.guidedStrategySamples;
 
                 LocalGuidedSample guidedSample =
-                    sampleGuidedLocalAt(rec.p, guidingMode);
+                    sampleGuidedLocalAt(rec.p, rec.shadingNormal, wo, guidingMode);
 
                 if (!guidedSample.valid || guidedSample.pdf <= 1e-12) {
                     // guiding 无效时回退到最初的 BSDF sample
@@ -412,6 +460,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     pdfGuided =
                         guidedPdfLocalAt(
                             rec.p,
+                            rec.shadingNormal,
                             localWi,
                             guidingMode
                         );
@@ -446,6 +495,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         pdfGuided =
                             guidedPdfLocalAt(
                                 rec.p,
+                                rec.shadingNormal,
                                 fallbackLocalWi,
                                 guidingMode
                             );
@@ -489,6 +539,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     pdfGuided =
                         guidedPdfLocalAt(
                             rec.p,
+                            rec.shadingNormal,
                             localWi,
                             guidingMode
                         );
@@ -614,4 +665,3 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
         gOpenPGLGuiding.printStats();
     }
 }
-

@@ -2,5 +2,6 @@
 
 enum class GuidingMode {
     Global,
-    Spatial
+    Spatial,
+    OpenPGL
 };
