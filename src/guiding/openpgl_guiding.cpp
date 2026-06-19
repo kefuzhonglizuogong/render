@@ -14,9 +14,10 @@ OpenPGLGuiding::OpenPGLGuiding() {
 
 void OpenPGLGuiding::reset() {
     guidingStats = OpenPGLGuidingStats();
+    trainingSamples.clear();
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Open PGL state will be initialized here in the next step.
+    // Open PGL device / field / sample storage will be initialized later.
 #endif
 }
 
@@ -28,6 +29,7 @@ bool OpenPGLGuiding::enabled() const {
 #endif
 }
 
+//接收一个路径顶点 PathVertex，尝试把它转换成 Open PGL 将来可以使用的训练样本
 void OpenPGLGuiding::recordVertex(const PathVertex& vertex) {
     ++guidingStats.receivedVertices;
 
@@ -48,11 +50,23 @@ void OpenPGLGuiding::recordVertex(const PathVertex& vertex) {
         return;
     }
 
+    OpenPGLTrainingSample sample = convertVertexToSample(vertex, weight);
+
+    if (!sample.valid) {
+        ++guidingStats.skippedBadWeightVertices;
+        return;
+    }
+
+    trainingSamples.push_back(sample);
+
+    ++guidingStats.recordedVertices;
+    ++guidingStats.storedSamples;
+
+    guidingStats.totalTrainingWeight += weight;
+    guidingStats.maxTrainingWeight = std::max(guidingStats.maxTrainingWeight, weight);
+
 #ifdef RENDER_ENABLE_OPENPGL
-    // In the next step, this PathVertex will be converted to Open PGL sample data.
-    ++guidingStats.recordedVertices;
-#else
-    ++guidingStats.recordedVertices;
+    // Later: convert OpenPGLTrainingSample to real Open PGL SampleData here.
 #endif
 }
 
@@ -60,7 +74,7 @@ void OpenPGLGuiding::build() {
     ++guidingStats.buildCount;
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Open PGL field training will be added here in the next step.
+    // Later: build / update Open PGL Field from trainingSamples.
 #endif
 }
 
@@ -73,7 +87,7 @@ OpenPGLGuidedSample OpenPGLGuiding::sample(const Point3& position, const Vec3& n
     result.valid = false;
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Open PGL guided direction sampling will be added later.
+    // Later: query Open PGL surface distribution and sample direction.
     ++guidingStats.failedSamples;
 #else
     ++guidingStats.failedSamples;
@@ -84,7 +98,7 @@ OpenPGLGuidedSample OpenPGLGuiding::sample(const Point3& position, const Vec3& n
 
 double OpenPGLGuiding::pdf(const Point3& position, const Vec3& normal, const Vec3& wi) const {
 #ifdef RENDER_ENABLE_OPENPGL
-    // Open PGL pdf query will be added later.
+    // Later: query Open PGL pdf.
     return 0.0;
 #else
     return 0.0;
@@ -93,6 +107,10 @@ double OpenPGLGuiding::pdf(const Point3& position, const Vec3& normal, const Vec
 
 const OpenPGLGuidingStats& OpenPGLGuiding::stats() const {
     return guidingStats;
+}
+
+const std::vector<OpenPGLTrainingSample>& OpenPGLGuiding::samples() const {
+    return trainingSamples;
 }
 
 void OpenPGLGuiding::printStats() const {
@@ -106,9 +124,20 @@ void OpenPGLGuiding::printStats() const {
 
     std::cout << "Received vertices: " << guidingStats.receivedVertices << "\n";
     std::cout << "Recorded vertices: " << guidingStats.recordedVertices << "\n";
+    std::cout << "Stored samples: " << guidingStats.storedSamples << "\n";
     std::cout << "Skipped invalid vertices: " << guidingStats.skippedInvalidVertices << "\n";
     std::cout << "Skipped delta vertices: " << guidingStats.skippedDeltaVertices << "\n";
     std::cout << "Skipped bad weight vertices: " << guidingStats.skippedBadWeightVertices << "\n";
+    std::cout << "Skipped below surface vertices: " << guidingStats.skippedBelowSurfaceVertices << "\n";
+    std::cout << "Total training weight: " << guidingStats.totalTrainingWeight << "\n";
+    std::cout << "Max training weight: " << guidingStats.maxTrainingWeight << "\n";
+
+    if (guidingStats.recordedVertices > 0) {
+        std::cout << "Avg training weight: "
+            << guidingStats.totalTrainingWeight / static_cast<double>(guidingStats.recordedVertices)
+            << "\n";
+    }
+
     std::cout << "Build count: " << guidingStats.buildCount << "\n";
     std::cout << "Sample requests: " << guidingStats.sampleRequests << "\n";
     std::cout << "Valid samples: " << guidingStats.validSamples << "\n";
@@ -117,8 +146,46 @@ void OpenPGLGuiding::printStats() const {
     std::cout << "==============================\n";
 }
 
+//把 PathVertex 转成 OpenPGLTrainingSample
+OpenPGLTrainingSample OpenPGLGuiding::convertVertexToSample(const PathVertex& vertex, double weight) const {
+    OpenPGLTrainingSample sample;
+
+    if (isBadVector(vertex.position) || isBadVector(vertex.shadingNormal) || isBadVector(vertex.wi) || isBadVector(vertex.wo)) {
+        return sample;
+    }
+
+    Vec3 normal = vertex.shadingNormal.normalized();
+    Vec3 directionIn = vertex.wi.normalized();
+    Vec3 directionOut = vertex.wo.normalized();
+
+    double cosTheta = std::max(0.0, dot(normal, directionIn));
+
+    if (cosTheta <= 0.0) {
+        return sample;
+    }
+
+    sample.position = vertex.position;
+    sample.normal = normal;
+    sample.directionIn = directionIn;
+    sample.directionOut = directionOut;
+    sample.throughput = vertex.throughput;
+    sample.bsdfPdf = vertex.bsdfPdf;
+    sample.cosTheta = cosTheta;
+    sample.depth = vertex.depth;
+    sample.weight = weight;
+
+    sample.radianceIn = Color(weight, weight, weight);
+    sample.valid = true;
+
+    return sample;
+}
+
 bool OpenPGLGuiding::isBad(double x) const {
     return std::isnan(x) || std::isinf(x);
+}
+
+bool OpenPGLGuiding::isBadVector(const Vec3& v) const {
+    return isBad(v.x) || isBad(v.y) || isBad(v.z);
 }
 
 double OpenPGLGuiding::maxColorComponent(const Color& c) const {
