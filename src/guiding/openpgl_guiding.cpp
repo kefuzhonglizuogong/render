@@ -5,19 +5,51 @@
 #include <iostream>
 
 #ifdef RENDER_ENABLE_OPENPGL
-#include <openpgl/openpgl.h>
+#include <openpgl/cpp/OpenPGL.h>
 #endif
 
-OpenPGLGuiding::OpenPGLGuiding() {
+#ifdef RENDER_ENABLE_OPENPGL
+struct OpenPGLGuiding::OpenPGLRuntime {
+    std::unique_ptr<openpgl::cpp::Device> device;
+    openpgl::cpp::FieldConfig fieldConfig;
+    std::unique_ptr<openpgl::cpp::Field> field;
+    std::unique_ptr<openpgl::cpp::SampleStorage> sampleStorage;
+
+    OpenPGLRuntime() {
+        device = std::make_unique<openpgl::cpp::Device>(PGL_DEVICE_TYPE_CPU_4);
+
+        fieldConfig.Init(
+            PGL_SPATIAL_STRUCTURE_KDTREE,
+            PGL_DIRECTIONAL_DISTRIBUTION_PARALLAX_AWARE_VMM,
+            true,
+            32000
+        );
+
+        fieldConfig.SetSpatialStructureArgMaxDepth(16);
+
+        field = std::make_unique<openpgl::cpp::Field>(device.get(), fieldConfig);
+        sampleStorage = std::make_unique<openpgl::cpp::SampleStorage>();
+    }
+};
+#else
+struct OpenPGLGuiding::OpenPGLRuntime {
+};
+#endif
+
+OpenPGLGuiding::OpenPGLGuiding()
+    : sceneBounds(Point3(-10.0, -2.0, -10.0), Point3(10.0, 5.0, 5.0)) {
     reset();
 }
+
+OpenPGLGuiding::~OpenPGLGuiding() = default;
 
 void OpenPGLGuiding::reset() {
     guidingStats = OpenPGLGuidingStats();
     trainingSamples.clear();
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Open PGL device / field / sample storage will be initialized later.
+    runtime.reset();
+    initializeRuntime();
 #endif
 }
 
@@ -29,7 +61,62 @@ bool OpenPGLGuiding::enabled() const {
 #endif
 }
 
-//接收一个路径顶点 PathVertex，尝试把它转换成 Open PGL 将来可以使用的训练样本
+void OpenPGLGuiding::setSceneBounds(const AABB& bounds) {
+    sceneBounds = bounds;
+    applySceneBounds();
+}
+
+bool OpenPGLGuiding::initializeRuntime() {
+#ifdef RENDER_ENABLE_OPENPGL
+    if (runtime) {
+        return true;
+    }
+
+    try {
+        runtime = std::make_unique<OpenPGLRuntime>();
+
+        guidingStats.runtimeInitialized = runtime != nullptr;
+        guidingStats.fieldInitialized = runtime && runtime->field != nullptr;
+        guidingStats.sampleStorageInitialized = runtime && runtime->sampleStorage != nullptr;
+
+        applySceneBounds();
+
+        return guidingStats.runtimeInitialized && guidingStats.fieldInitialized && guidingStats.sampleStorageInitialized;
+    }
+    catch (const std::exception& e) {
+        ++guidingStats.runtimeInitFailures;
+        runtime.reset();
+
+        std::cout << "Open PGL initialization failed: " << e.what() << "\n";
+
+        return false;
+    }
+#else
+    return false;
+#endif
+}
+
+void OpenPGLGuiding::applySceneBounds() {
+#ifdef RENDER_ENABLE_OPENPGL
+    if (!runtime || !runtime->field) {
+        return;
+    }
+
+    pgl_box3f bounds;
+    pglBox3f(
+        bounds,
+        static_cast<float>(sceneBounds.minimum.x),
+        static_cast<float>(sceneBounds.minimum.y),
+        static_cast<float>(sceneBounds.minimum.z),
+        static_cast<float>(sceneBounds.maximum.x),
+        static_cast<float>(sceneBounds.maximum.y),
+        static_cast<float>(sceneBounds.maximum.z)
+    );
+
+    runtime->field->SetSceneBounds(bounds);
+#endif
+}
+
 void OpenPGLGuiding::recordVertex(const PathVertex& vertex) {
     ++guidingStats.receivedVertices;
 
@@ -64,17 +151,20 @@ void OpenPGLGuiding::recordVertex(const PathVertex& vertex) {
 
     guidingStats.totalTrainingWeight += weight;
     guidingStats.maxTrainingWeight = std::max(guidingStats.maxTrainingWeight, weight);
-
-#ifdef RENDER_ENABLE_OPENPGL
-    // Later: convert OpenPGLTrainingSample to real Open PGL SampleData here.
-#endif
 }
 
 void OpenPGLGuiding::build() {
     ++guidingStats.buildCount;
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Later: build / update Open PGL Field from trainingSamples.
+    if (!initializeRuntime()) {
+        return;
+    }
+
+    if (runtime && runtime->sampleStorage) {
+        guidingStats.openPGLSurfaceSamples = static_cast<std::uint64_t>(runtime->sampleStorage->GetSizeSurface());
+        guidingStats.openPGLVolumeSamples = static_cast<std::uint64_t>(runtime->sampleStorage->GetSizeVolume());
+    }
 #endif
 }
 
@@ -87,7 +177,6 @@ OpenPGLGuidedSample OpenPGLGuiding::sample(const Point3& position, const Vec3& n
     result.valid = false;
 
 #ifdef RENDER_ENABLE_OPENPGL
-    // Later: query Open PGL surface distribution and sample direction.
     ++guidingStats.failedSamples;
 #else
     ++guidingStats.failedSamples;
@@ -98,7 +187,6 @@ OpenPGLGuidedSample OpenPGLGuiding::sample(const Point3& position, const Vec3& n
 
 double OpenPGLGuiding::pdf(const Point3& position, const Vec3& normal, const Vec3& wi) const {
 #ifdef RENDER_ENABLE_OPENPGL
-    // Later: query Open PGL pdf.
     return 0.0;
 #else
     return 0.0;
@@ -122,6 +210,11 @@ void OpenPGLGuiding::printStats() const {
     std::cout << "Open PGL enabled: no\n";
 #endif
 
+    std::cout << "Runtime initialized: " << (guidingStats.runtimeInitialized ? "yes" : "no") << "\n";
+    std::cout << "Field initialized: " << (guidingStats.fieldInitialized ? "yes" : "no") << "\n";
+    std::cout << "Sample storage initialized: " << (guidingStats.sampleStorageInitialized ? "yes" : "no") << "\n";
+    std::cout << "Runtime init failures: " << guidingStats.runtimeInitFailures << "\n";
+
     std::cout << "Received vertices: " << guidingStats.receivedVertices << "\n";
     std::cout << "Recorded vertices: " << guidingStats.recordedVertices << "\n";
     std::cout << "Stored samples: " << guidingStats.storedSamples << "\n";
@@ -129,6 +222,7 @@ void OpenPGLGuiding::printStats() const {
     std::cout << "Skipped delta vertices: " << guidingStats.skippedDeltaVertices << "\n";
     std::cout << "Skipped bad weight vertices: " << guidingStats.skippedBadWeightVertices << "\n";
     std::cout << "Skipped below surface vertices: " << guidingStats.skippedBelowSurfaceVertices << "\n";
+
     std::cout << "Total training weight: " << guidingStats.totalTrainingWeight << "\n";
     std::cout << "Max training weight: " << guidingStats.maxTrainingWeight << "\n";
 
@@ -138,6 +232,9 @@ void OpenPGLGuiding::printStats() const {
             << "\n";
     }
 
+    std::cout << "Open PGL surface samples: " << guidingStats.openPGLSurfaceSamples << "\n";
+    std::cout << "Open PGL volume samples: " << guidingStats.openPGLVolumeSamples << "\n";
+
     std::cout << "Build count: " << guidingStats.buildCount << "\n";
     std::cout << "Sample requests: " << guidingStats.sampleRequests << "\n";
     std::cout << "Valid samples: " << guidingStats.validSamples << "\n";
@@ -146,7 +243,6 @@ void OpenPGLGuiding::printStats() const {
     std::cout << "==============================\n";
 }
 
-//把 PathVertex 转成 OpenPGLTrainingSample
 OpenPGLTrainingSample OpenPGLGuiding::convertVertexToSample(const PathVertex& vertex, double weight) const {
     OpenPGLTrainingSample sample;
 

@@ -1,9 +1,11 @@
 #pragma once
 
+#include "core/aabb.h"
 #include "core/vec3.h"
 #include "render/path_vertex.h"
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 struct OpenPGLGuidedSample {
@@ -38,17 +40,27 @@ struct OpenPGLGuidingStats {
     std::uint64_t sampleRequests = 0;
     std::uint64_t validSamples = 0;
     std::uint64_t failedSamples = 0;
+    std::uint64_t runtimeInitFailures = 0;
+    std::uint64_t openPGLSurfaceSamples = 0;
+    std::uint64_t openPGLVolumeSamples = 0;
 
     double totalTrainingWeight = 0.0;
     double maxTrainingWeight = 0.0;
+
+    bool runtimeInitialized = false;
+    bool fieldInitialized = false;
+    bool sampleStorageInitialized = false;
 };
 
 class OpenPGLGuiding {
 public:
     OpenPGLGuiding();
+    ~OpenPGLGuiding();
 
     void reset();
     bool enabled() const;
+
+    void setSceneBounds(const AABB& bounds);
 
     void recordVertex(const PathVertex& vertex);
     void build();
@@ -62,8 +74,16 @@ public:
     void printStats() const;
 
 private:
+    struct OpenPGLRuntime;
+
     OpenPGLGuidingStats guidingStats;
     std::vector<OpenPGLTrainingSample> trainingSamples;
+    std::unique_ptr<OpenPGLRuntime> runtime;
+
+    AABB sceneBounds;
+
+    bool initializeRuntime();
+    void applySceneBounds();
 
     OpenPGLTrainingSample convertVertexToSample(const PathVertex& vertex, double weight) const;
 
