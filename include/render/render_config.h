@@ -54,8 +54,7 @@ struct RenderConfig {
 
     std::string globalGuidedOutputPath;
     std::string spatialGuidedOutputPath;
-    std::string openPGLGuidedOutputPath;
-
+    
 
     double meshCenterX = -0.3;
     double meshCenterY = 0.0;
