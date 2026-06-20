@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 Triangle::Triangle(
     const Point3& a,
@@ -32,6 +33,17 @@ Triangle::Triangle(
     hasVertexNormals = true;
 }
 
+void Triangle::setUVs(
+    const Vec2& a,
+    const Vec2& b,
+    const Vec2& c
+) {
+    uv0 = a;
+    uv1 = b;
+    uv2 = c;
+    hasUV = true;
+}
+
 bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& rec) const {
     ++gStats.triangleIntersectCalls;
 
@@ -50,16 +62,16 @@ bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& re
     double f = 1.0 / a;
 
     Vec3 s = ray.origin - v0;
-    double u = f * dot(s, h);
+    double baryU = f * dot(s, h);
 
-    if (u < 0.0 || u > 1.0) {
+    if (baryU < 0.0 || baryU > 1.0) {
         return false;
     }
 
     Vec3 q = cross(s, edge1);
-    double v = f * dot(ray.direction, q);
+    double baryV = f * dot(ray.direction, q);
 
-    if (v < 0.0 || u + v > 1.0) {
+    if (baryV < 0.0 || baryU + baryV > 1.0) {
         return false;
     }
 
@@ -73,8 +85,8 @@ bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& re
     rec.p = ray.at(t);
     rec.setFaceNormal(ray, normal);
 
-    double w = 1.0 - u - v;
-    Vec3 interpolatedNormal = (w * n0 + u * n1 + v * n2).normalized();
+    double baryW = 1.0 - baryU - baryV;
+    Vec3 interpolatedNormal = (baryW * n0 + baryU * n1 + baryV * n2).normalized();
 
     if (interpolatedNormal.lengthSquared() <= 0.0) {
         interpolatedNormal = normal;
@@ -86,6 +98,19 @@ bool Triangle::intersect(const Ray& ray, double tMin, double tMax, HitRecord& re
 
     rec.shadingNormal = interpolatedNormal;
     rec.material = material;
+
+    rec.hasUV = hasUV;
+    if (hasUV) {
+        rec.uv = uv0 * static_cast<float>(baryW) +
+            uv1 * static_cast<float>(baryU) +
+            uv2 * static_cast<float>(baryV);
+    }
+
+    const Lambertian* lambert = dynamic_cast<const Lambertian*>(material.get());
+    if (lambert && lambert->texture && lambert->texture->isValid() && rec.hasUV) {
+        rec.baseColor = lambert->texture->sample(rec.uv.x, rec.uv.y);
+        rec.hasBaseColor = true;
+    }
 
     return true;
 }

@@ -16,6 +16,8 @@
 #include <iostream>
 
 namespace {
+    constexpr double PI = 3.14159265358979323846;
+
     double powerHeuristic(double pdfA, double pdfB) {
         double a = pdfA * pdfA;
         double b = pdfB * pdfB;
@@ -31,6 +33,18 @@ namespace {
 
     bool isBadNumber(double x) {
         return std::isnan(x) || std::isinf(x);
+    }
+
+    Color applyHitBaseColor(const HitRecord& rec, const Color& f) {
+        if (!rec.hasBaseColor || !rec.material) {
+            return f;
+        }
+
+        if (!dynamic_cast<const Lambertian*>(rec.material.get())) {
+            return f;
+        }
+
+        return rec.baseColor / PI;
     }
 
     void recordPdfStats(double pdfBsdf,double pdfGuided,double pdfFinal) {
@@ -116,7 +130,10 @@ namespace {
             return Color(0.0, 0.0, 0.0);
         }
 
-        Color f = rec.material->eval(wo, rec.shadingNormal, wi);
+        Color f = applyHitBaseColor(
+            rec,
+            rec.material->eval(wo, rec.shadingNormal, wi)
+        );
 
         if (isBlack(f)) {
             return Color(0.0, 0.0, 0.0);
@@ -421,7 +438,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
             bsdfSample = initialSample;
 
             wi = bsdfSample.wi.normalized();
-            f = bsdfSample.f;
+            f = applyHitBaseColor(rec, bsdfSample.f);
             pdfBsdf = bsdfSample.pdf;
             pdfGuided = 0.0;
             pdfFinal = pdfBsdf;
@@ -449,7 +466,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                     bsdfSample = initialSample;
 
                     wi = bsdfSample.wi.normalized();
-                    f = bsdfSample.f;
+                    f = applyHitBaseColor(rec, bsdfSample.f);
                     pdfBsdf = rec.material->pdfValue( wo, rec.shadingNormal, wi);
 
                     Frame frame(rec.shadingNormal);
@@ -486,7 +503,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         bsdfSample = initialSample;
 
                         wi = bsdfSample.wi.normalized();
-                        f = bsdfSample.f;
+                        f = applyHitBaseColor(rec, bsdfSample.f);
                         pdfBsdf =rec.material->pdfValue(wo, rec.shadingNormal,wi);
 
                         Vec3 fallbackLocalWi =
@@ -503,7 +520,10 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                         usedGuidedSampling = false;
                     }
                     else {
-                        f = rec.material->eval(wo, rec.shadingNormal, wi);
+                        f = applyHitBaseColor(
+                            rec,
+                            rec.material->eval(wo, rec.shadingNormal, wi)
+                        );
 
                         pdfBsdf =rec.material->pdfValue(wo, rec.shadingNormal, wi);
 
@@ -525,7 +545,7 @@ Color Renderer::trace(const Ray& rayIn, const Scene& scene, int depth) const {
                 bsdfSample = initialSample;
 
                 wi = bsdfSample.wi.normalized();
-                f = bsdfSample.f;
+                f = applyHitBaseColor(rec, bsdfSample.f);
 
                 pdfBsdf =
                     rec.material->pdfValue(wo, rec.shadingNormal, wi);

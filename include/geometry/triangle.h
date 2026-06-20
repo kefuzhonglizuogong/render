@@ -3,6 +3,7 @@
 #include "geometry/hittable.h"
 #include "core/vec3.h"
 #include "material/material.h"
+#include "render/core/vec2.h"
 
 #include <memory>
 
@@ -17,6 +18,11 @@ public:
     Vec3 n1;
     Vec3 n2;
     bool hasVertexNormals = false;
+
+    Vec2 uv0;
+    Vec2 uv1;
+    Vec2 uv2;
+    bool hasUV = false;
 
     std::shared_ptr<Material> material;
 
@@ -35,6 +41,12 @@ public:
         const Vec3& n1,
         const Vec3& n2,
         const std::shared_ptr<Material>& material
+    );
+
+    void setUVs(
+        const Vec2& uv0,
+        const Vec2& uv1,
+        const Vec2& uv2
     );
 
     bool intersect(const Ray& ray,double tMin, double tMax,HitRecord& rec) const override;

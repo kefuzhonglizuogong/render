@@ -2,7 +2,9 @@
 
 #include "core/vec3.h"
 #include "material/bsdf_sample.h"
+#include "render/texture/texture.h"
 
+#include <memory>
 
 /*
 eval()：这个方向的 BRDF 值是多少
@@ -36,6 +38,7 @@ public:
 class Lambertian : public Material {
 public:
     Color albedo;
+    std::shared_ptr<Texture> texture = nullptr;
 
     explicit Lambertian(const Color& a);
 

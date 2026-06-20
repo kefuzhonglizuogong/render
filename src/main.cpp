@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
+#include <cstdlib>
 
 #include "render/scene.h"
 #include "geometry/sphere.h"
@@ -30,6 +31,7 @@
 #include "image/float_image.h"
 #include "guiding/guiding_mode.h"
 #include "guiding/directional_histogram_debug.h"
+#include "render/asset/obj_scene_loader.h"
 
 #ifdef RENDER_ENABLE_OPENPGL
 #include <openpgl/openpgl.h>
@@ -455,7 +457,25 @@ int main() {
     ));*/
 
 
-    buildTestScene(scene);
+    bool useObjScene = false;
+
+    if (const char* useObjSceneEnv = std::getenv("MINI_RENDERER_USE_OBJ_SCENE")) {
+        useObjScene = std::string(useObjSceneEnv) == "1";
+    }
+
+    if (useObjScene) {
+        ObjSceneLoader loader;
+        const std::string objScenePath =
+            projectPath("assets/textured_quad/textured_quad.obj").string();
+
+        if (!loader.load(objScenePath, scene)) {
+            std::cerr << "Failed to load OBJ scene.\n";
+            return 1;
+        }
+    }
+    else {
+        buildTestScene(scene);
+    }
 
     // 十万次光源选择测试
     //debugLightSelection(scene, 100000);

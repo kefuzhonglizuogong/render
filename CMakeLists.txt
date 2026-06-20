@@ -24,6 +24,9 @@ add_executable(mini_path_tracer
     src/guiding/local_hemisphere_histogram.cpp
     src/guiding/openpgl_guiding.cpp
     src/guiding/spatial_guiding_grid.cpp
+    src/texture/texture.cpp
+    src/asset/mtl_loader.cpp
+    src/asset/obj_scene_loader.cpp
     src/io/image_loader.cpp
     src/io/obj_loader.cpp
     src/light/environment_debug.cpp
@@ -63,6 +66,11 @@ add_executable(mini_path_tracer
     include/guiding/openpgl_guiding.h
     include/guiding/spatial_guiding_grid.h
 
+    include/render/core/vec2.h
+    include/render/texture/texture.h
+    include/render/asset/mtl_loader.h
+    include/render/asset/obj_scene_loader.h
+
     include/image/float_image.h
     include/image/image.h
 
@@ -87,6 +95,10 @@ add_executable(mini_path_tracer
     include/render/renderer.h
     include/render/scene.h
     include/render/test_scenes.h
+)
+
+target_include_directories(mini_path_tracer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
 target_compile_definitions(mini_path_tracer PRIVATE PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")

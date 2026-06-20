@@ -2,6 +2,7 @@
 
 #include "core/vec3.h"
 #include "core/ray.h"
+#include "render/core/vec2.h"
 
 #include <memory>
 
@@ -11,12 +12,25 @@ struct HitRecord {
     Point3 p;
     Vec3 geometricNormal;
     Vec3 shadingNormal;
+    Vec2 uv;
+    Color baseColor;
     double t;
+    bool hasUV;
+    bool hasBaseColor;
     bool frontFace;
     std::shared_ptr<Material> material;
 
     HitRecord()
-        : p(), geometricNormal(), shadingNormal(), t(0.0), frontFace(true), material(nullptr) {
+        : p(),
+          geometricNormal(),
+          shadingNormal(),
+          uv(),
+          baseColor(1.0, 1.0, 1.0),
+          t(0.0),
+          hasUV(false),
+          hasBaseColor(false),
+          frontFace(true),
+          material(nullptr) {
     }
 
     void setFaceNormal(const Ray& ray, const Vec3& outwardNormal) {
