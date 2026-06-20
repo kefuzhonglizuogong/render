@@ -4,6 +4,7 @@ build_codegen/
 out/
 cmake-build-*/
 build_codex/
+build_*/
 
 # generated images / render outputs
 output/
