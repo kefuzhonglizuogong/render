@@ -646,7 +646,7 @@ int main() {
         std::cout << "Max final pdf:                " << gStats.maxFinalPdf << "\n";
         std::cout << "=============================\n";
 
-        std::cout << "\n=== Guiding Comparison Summary ===\n";
+        std::cout << "\n=== Final Guiding Comparison Summary ===\n";
         std::cout << "Image width: " << imageWidth << "\n";
         std::cout << "Image height: " << imageHeight << "\n";
         std::cout << "Render samples per pixel: " << samplesPerPixel << "\n";
