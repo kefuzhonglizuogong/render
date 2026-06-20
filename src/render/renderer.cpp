@@ -664,4 +664,8 @@ void Renderer::render(const Scene& scene, const Camera& camera, Film& film) cons
         gGuidingTrainer.printStats();
         gOpenPGLGuiding.printStats();
     }
+
+    if (enableGuidedSampling && guidingMode == GuidingMode::OpenPGL) {
+        gOpenPGLGuiding.printStats();
+    }
 }

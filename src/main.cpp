@@ -546,7 +546,7 @@ int main() {
         spatialGuidedRenderer.setEnableGuidingRecord(false);
         spatialGuidedRenderer.setEnableGuidedSampling(true);
         spatialGuidedRenderer.setGuidingProbability(config.guidingProbability);
-        spatialGuidedRenderer.setGuidingMode(GuidingMode::Spatial);
+        spatialGuidedRenderer.setGuidingMode(GuidingMode::OpenPGL);
 
         gStats.reset();
 

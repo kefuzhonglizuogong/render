@@ -1,5 +1,7 @@
 #include "guiding/openpgl_guiding.h"
 
+#include "core/random.h"
+
 #include <algorithm>
 #include <cmath>
 #include <exception>
@@ -48,6 +50,20 @@ pgl_vec3f makePGLVec(const Vec3& v) {
     pgl_vec3f result;
     pglVec3f(result, static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
     return result;
+}
+
+pgl_point2f makePGLPoint2(double x, double y) {
+    pgl_point2f result;
+    pglPoint2f(result, static_cast<float>(x), static_cast<float>(y));
+    return result;
+}
+
+Vec3 makeVec3(const pgl_vec3f& v) {
+    return Vec3(
+        static_cast<double>(v.x),
+        static_cast<double>(v.y),
+        static_cast<double>(v.z)
+    );
 }
 
 openpgl::cpp::SampleData makePGLSampleData(const OpenPGLTrainingSample& sample) {
@@ -241,17 +257,124 @@ OpenPGLGuidedSample OpenPGLGuiding::sample(const Point3& position, const Vec3& n
     result.valid = false;
 
 #ifdef RENDER_ENABLE_OPENPGL
-    ++guidingStats.failedSamples;
+    if (!runtime || !runtime->field || !guidingStats.openPGLUpdateSucceeded) {
+        ++guidingStats.failedSamples;
+        return result;
+    }
+
+    if (isBadVector(position) || isBadVector(normal) || isBadVector(wo)) {
+        ++guidingStats.failedSamples;
+        return result;
+    }
+
+    Vec3 unitNormal = normal.normalized();
+
+    if (unitNormal.lengthSquared() <= 0.0) {
+        ++guidingStats.failedSamples;
+        return result;
+    }
+
+    try {
+        openpgl::cpp::SurfaceSamplingDistribution distribution(runtime->field.get());
+
+        pgl_point3f pglPosition = makePGLPoint(position);
+        float sample1D = static_cast<float>(randomDouble());
+
+        if (!distribution.Init(runtime->field.get(), pglPosition, sample1D)) {
+            ++guidingStats.failedSamples;
+            return result;
+        }
+
+        if (distribution.SupportsApplyCosineProduct()) {
+            distribution.ApplyCosineProduct(makePGLVec(unitNormal));
+        }
+
+        pgl_point2f sample2D = makePGLPoint2(randomDouble(), randomDouble());
+        pgl_vec3f pglDirection;
+
+        float pdfValue = distribution.SamplePDF(sample2D, pglDirection);
+
+        if (pdfValue <= 1e-12f || std::isnan(pdfValue) || std::isinf(pdfValue)) {
+            ++guidingStats.failedSamples;
+            return result;
+        }
+
+        Vec3 wi = makeVec3(pglDirection).normalized();
+
+        if (isBadVector(wi) || wi.lengthSquared() <= 0.0) {
+            ++guidingStats.failedSamples;
+            return result;
+        }
+
+        double cosTheta = dot(unitNormal, wi);
+
+        if (cosTheta <= 0.0) {
+            ++guidingStats.failedSamples;
+            return result;
+        }
+
+        result.wi = wi;
+        result.pdf = static_cast<double>(pdfValue);
+        result.valid = true;
+
+        ++guidingStats.validSamples;
+        return result;
+    } catch (const std::exception& e) {
+        ++guidingStats.failedSamples;
+        std::cout << "Open PGL sample failed: " << e.what() << "\n";
+        return result;
+    }
 #else
     ++guidingStats.failedSamples;
-#endif
-
     return result;
+#endif
 }
 
 double OpenPGLGuiding::pdf(const Point3& position, const Vec3& normal, const Vec3& wi) const {
 #ifdef RENDER_ENABLE_OPENPGL
-    return 0.0;
+    if (!runtime || !runtime->field || !guidingStats.openPGLUpdateSucceeded) {
+        return 0.0;
+    }
+
+    if (isBadVector(position) || isBadVector(normal) || isBadVector(wi)) {
+        return 0.0;
+    }
+
+    Vec3 unitNormal = normal.normalized();
+    Vec3 unitWi = wi.normalized();
+
+    if (unitNormal.lengthSquared() <= 0.0 || unitWi.lengthSquared() <= 0.0) {
+        return 0.0;
+    }
+
+    if (dot(unitNormal, unitWi) <= 0.0) {
+        return 0.0;
+    }
+
+    try {
+        openpgl::cpp::SurfaceSamplingDistribution distribution(runtime->field.get());
+
+        pgl_point3f pglPosition = makePGLPoint(position);
+        float sample1D = 0.5f;
+
+        if (!distribution.Init(runtime->field.get(), pglPosition, sample1D)) {
+            return 0.0;
+        }
+
+        if (distribution.SupportsApplyCosineProduct()) {
+            distribution.ApplyCosineProduct(makePGLVec(unitNormal));
+        }
+
+        float pdfValue = distribution.PDF(makePGLVec(unitWi));
+
+        if (pdfValue <= 1e-12f || std::isnan(pdfValue) || std::isinf(pdfValue)) {
+            return 0.0;
+        }
+
+        return static_cast<double>(pdfValue);
+    } catch (const std::exception&) {
+        return 0.0;
+    }
 #else
     return 0.0;
 #endif
