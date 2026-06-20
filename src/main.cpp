@@ -119,6 +119,13 @@ namespace {
             else {
                 config.spatialGuidedOutputPath = projectPath(config.spatialGuidedOutputPath).string();
             }
+
+            if (config.openPGLGuidedOutputPath.empty()) {
+                config.openPGLGuidedOutputPath = (outputDir / ("render_" + timestamp + "_openpgl_guided.ppm")).string();
+            }
+            else {
+                config.openPGLGuidedOutputPath = projectPath(config.openPGLGuidedOutputPath).string();
+            }
         }
     }
 
@@ -197,14 +204,14 @@ int main() {
     );*/
 
     scene.setEnvironment(envLight);
-    
+
     /*
     auto whiteMat = std::make_shared<Lambertian>(Color(0.75, 0.75, 0.75));
     auto redMat = std::make_shared<Lambertian>(Color(0.75, 0.15, 0.15));
     auto greenMat = std::make_shared<Lambertian>(Color(0.15, 0.75, 0.15));
     auto blueMat = std::make_shared<Lambertian>(Color(0.20, 0.30, 0.80));
     auto triangleMat = std::make_shared<Lambertian>(Color(0.1, 0.3, 0.9));
-    
+
     auto meshMat = std::make_shared<Lambertian>(Color(0.85, 0.65, 0.25));
 
     // 批量测试
@@ -546,7 +553,7 @@ int main() {
         spatialGuidedRenderer.setEnableGuidingRecord(false);
         spatialGuidedRenderer.setEnableGuidedSampling(true);
         spatialGuidedRenderer.setGuidingProbability(config.guidingProbability);
-        spatialGuidedRenderer.setGuidingMode(GuidingMode::OpenPGL);
+        spatialGuidedRenderer.setGuidingMode(GuidingMode::Spatial);
 
         gStats.reset();
 
@@ -563,8 +570,33 @@ int main() {
         std::cout << "Spatial guided render finished: " << config.spatialGuidedOutputPath << "\n";
         std::cout << "Spatial guided render time seconds: " << spatialGuidedTime << "\n";
 
+        std::cout << "\n=== Open PGL Guided Render ===\n";
+
+        Film openPGLGuidedFilm(imageWidth, imageHeight);
+        Renderer openPGLGuidedRenderer(samplesPerPixel, maxDepth);
+
+        openPGLGuidedRenderer.setEnableGuidingRecord(false);
+        openPGLGuidedRenderer.setEnableGuidedSampling(true);
+        openPGLGuidedRenderer.setGuidingProbability(config.guidingProbability);
+        openPGLGuidedRenderer.setGuidingMode(GuidingMode::OpenPGL);
+
+        gStats.reset();
+
+        auto openPGLGuidedStart = std::chrono::high_resolution_clock::now();
+        openPGLGuidedRenderer.render(scene, camera, openPGLGuidedFilm);
+        auto openPGLGuidedEnd = std::chrono::high_resolution_clock::now();
+
+        ensureOutputDirectory(config.openPGLGuidedOutputPath);
+        openPGLGuidedFilm.savePPM(config.openPGLGuidedOutputPath, samplesPerPixel);
+
+        double openPGLGuidedTime =
+            std::chrono::duration<double>(openPGLGuidedEnd - openPGLGuidedStart).count();
+
+        std::cout << "Open PGL guided render finished: " << config.openPGLGuidedOutputPath << "\n";
+        std::cout << "Open PGL guided render time seconds: " << openPGLGuidedTime << "\n";
+
         std::cout << "\n=== Render Stats ===\n";
-        std::cout << "Render time seconds:       " << spatialGuidedTime << "\n";
+        std::cout << "Render time seconds:       " << openPGLGuidedTime << "\n";
         std::cout << "Scene intersect calls:     " << gStats.sceneIntersectCalls << "\n";
         std::cout << "Guiding vertices:          " << gStats.guidingVertices << "\n";
         std::cout << "BVH node intersect calls:  " << gStats.bvhNodeIntersectCalls << "\n";
@@ -627,13 +659,16 @@ int main() {
         std::cout << "Training pass time: " << trainingTime << " s\n";
         std::cout << "Global guided render time: " << globalGuidedTime << " s\n";
         std::cout << "Spatial guided render time: " << spatialGuidedTime << " s\n";
+        std::cout << "Open PGL guided render time: " << openPGLGuidedTime << " s\n";
         std::cout << "Total global guided cost: " << trainingTime + globalGuidedTime << " s\n";
         std::cout << "Total spatial guided cost: " << trainingTime + spatialGuidedTime << " s\n";
+        std::cout << "Total Open PGL guided cost: " << trainingTime + openPGLGuidedTime << " s\n";
 
         std::cout << "\n--- Output ---\n";
         std::cout << "Baseline output: " << config.baselineOutputPath << "\n";
         std::cout << "Global guided output: " << config.globalGuidedOutputPath << "\n";
         std::cout << "Spatial guided output: " << config.spatialGuidedOutputPath << "\n";
+        std::cout << "Open PGL guided output: " << config.openPGLGuidedOutputPath << "\n";
 
         std::cout << "\n--- Guiding Distribution ---\n";
         printGuidingDistributionSummary();
